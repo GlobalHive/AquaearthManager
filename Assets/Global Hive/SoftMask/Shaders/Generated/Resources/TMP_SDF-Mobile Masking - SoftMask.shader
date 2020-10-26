@@ -104,7 +104,7 @@ SubShader {
 		#include "UnityCG.cginc"
 		#include "UnityUI.cginc"
 		#include "Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc"
-		#include "Assets/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
+		#include "Assets/Global Hive/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
 
 		struct vertex_t {
 			float4	vertex			: POSITION;

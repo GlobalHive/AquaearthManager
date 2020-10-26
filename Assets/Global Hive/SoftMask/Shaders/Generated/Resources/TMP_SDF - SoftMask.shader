@@ -132,7 +132,7 @@ SubShader {
 		#include "UnityUI.cginc"
 		#include "Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc"
 		#include "Assets/TextMesh Pro/Shaders/TMPro.cginc"
-		#include "Assets/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
+		#include "Assets/Global Hive/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
 
 		struct vertex_t {
 			UNITY_VERTEX_INPUT_INSTANCE_ID

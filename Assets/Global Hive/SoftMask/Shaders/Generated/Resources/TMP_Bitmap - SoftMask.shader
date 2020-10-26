@@ -60,7 +60,7 @@ SubShader{
 
 
 		#include "UnityCG.cginc"
-		#include "Assets/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
+		#include "Assets/Global Hive/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
 
 		struct appdata_t {
 			float4 vertex		: POSITION;

@@ -55,7 +55,7 @@ Shader "Soft Mask/TextMeshPro/Sprite"
 
 			#include "UnityCG.cginc"
 			#include "UnityUI.cginc"
-			#include "Assets/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
+			#include "Assets/Global Hive/SoftMask/Shaders/SoftMask.cginc" // Soft Mask
 
 			#pragma multi_compile __ UNITY_UI_CLIP_RECT
 			#pragma multi_compile __ UNITY_UI_ALPHACLIP
