@@ -1,0 +1,20 @@
+- ************************************
+*         Aquaearth Manager        *
+*           by Global Hive         * 
+*            README FILE           *
+************************************
+
+
+Support
+-------
+
+* E-mail support: support@globalhive.de
+* Website: https://globalhive.de
+
+Version history
+---------------
+
+Current version [ 0.1.0 ]
+- Added item editor
+- Lists categorys and inventory items
+- Initial Push
