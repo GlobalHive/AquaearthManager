@@ -10,6 +10,7 @@ public class Manager : Singleton<Manager>
     [SerializeField] GameObject _CategoryTemplate, _ItemTemplate;
     [SerializeField] Transform _CategoryArray, _ItemArray;
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
+    private int _OpenCategory = 0;
 
     [SerializeField]Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
     [SerializeField]Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
@@ -55,11 +56,13 @@ public class Manager : Singleton<Manager>
 
                 // Erstellt und konvertiert das bild aus der datenbank
                 Texture2D image = null;
-                byte[] imageBytes = (byte[])reader["img"];
-                if (imageBytes.Length != 0) {
-                    image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-                    image.LoadImage(imageBytes);
-                    image.Apply();
+                if (!string.IsNullOrEmpty(reader["img"].ToString())) {
+                    byte[] imageBytes = (byte[])reader["img"];
+                    if (imageBytes.Length != 0) {
+                        image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
+                        image.LoadImage(imageBytes);
+                        image.Apply();
+                    }
                 }
 
                 // Erstellt eine kategorie inklusive angezeigtes element
@@ -89,11 +92,15 @@ public class Manager : Singleton<Manager>
 
     #region Inventory
     public void ReloadInventory(int category) {
-        StartCoroutine(LoadItems(category));
+        if(category == -1)
+            StartCoroutine(LoadItems(_OpenCategory));
+        else
+            StartCoroutine(LoadItems(category));
     }
 
     IEnumerator LoadItems(int category) {
         int currentIndex = 1;
+        _OpenCategory = category;
 
         ClearInventory();
 
@@ -109,13 +116,15 @@ public class Manager : Singleton<Manager>
             while (reader.Read()) {
 
                 Texture2D image = null;
-                byte[] imageBytes = (byte[])reader["img"];
-                if (imageBytes.Length != 0) {
-                    image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-                    image.LoadImage(imageBytes);
-                    image.Apply();
+                if (!string.IsNullOrEmpty(reader["img"].ToString())) {
+                    byte[] imageBytes = (byte[])reader["img"];
+                    if (imageBytes != null || imageBytes.Length != 0) {
+                        image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
+                        image.LoadImage(imageBytes);
+                        image.Apply();
+                    }
                 }
-
+                
                 Item item = new Item(_ItemTemplate, _ItemArray, reader.GetInt32("id"),reader.GetString("name"),reader.GetInt32("amount"), 
                     reader.GetDouble("price"), reader.GetInt32("category"), image);
 
@@ -189,6 +198,8 @@ public class Category {
             _CategoryImage = image;
 
         _Title.SetText(CategoryName);
+        if (_CategoryImage == null)
+            _CategoryImage = _Image.texture;
         _Image.texture = _CategoryImage;
 
         _CategoryObject.GetComponent<Button>().onClick.AddListener(() => Manager.Instance.Tabs.PanelAnim(1));
@@ -230,6 +241,9 @@ public class Item
             _Image = value;
             _ItemImage.texture = _Image;
         }
+    }
+    public int ID {
+        get { return _ID; }
     }
     public string Name {
         get { return _Name; }

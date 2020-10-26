@@ -15,6 +15,7 @@ Version history
 ---------------
 
 Current version [ 0.1.0 ]
+- Added item saving and image selection
 - Added item editor
 - Lists categorys and inventory items
 - Initial Push
