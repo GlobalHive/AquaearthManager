@@ -7,6 +7,8 @@ using UnityEngine.UI;
 
 public class Manager : Singleton<Manager>
 {
+    [SerializeField] CanvasScaler _CanvasScaler;
+    [SerializeField] TMP_Text _ScaleText;
     [SerializeField] GameObject _CategoryTemplate, _ItemTemplate;
     [SerializeField] Transform _CategoryArray, _ItemArray;
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
@@ -14,6 +16,15 @@ public class Manager : Singleton<Manager>
 
     [SerializeField]Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
     [SerializeField]Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
+
+    public void ScaleUI(bool add) {
+        if(add)
+            _CanvasScaler.scaleFactor += 0.1f;
+        else
+            _CanvasScaler.scaleFactor -= 0.1f;
+
+        _ScaleText.SetText(_CanvasScaler.scaleFactor.ToString("N2"));
+    }
 
     private void Start() {
 
@@ -26,6 +37,23 @@ public class Manager : Singleton<Manager>
 
          // Startet das laden der Kategorien
         StartCoroutine(LoadCategories());
+    }
+
+    private void Update() {
+        if (Input.touchCount == 2) {
+            Touch touchZero = Input.GetTouch(0);
+            Touch touchOne = Input.GetTouch(1);
+
+            Vector2 touchZeroPrevPos = touchZero.position - touchZero.deltaPosition;
+            Vector2 touchOnePrevPos = touchOne.position - touchOne.deltaPosition;
+
+            float prevMagnitude = (touchZeroPrevPos - touchOnePrevPos).magnitude;
+            float currentMagnitude = (touchZero.position - touchOne.position).magnitude;
+
+            float difference = currentMagnitude - prevMagnitude;
+            _CanvasScaler.scaleFactor = Mathf.Clamp(_CanvasScaler.scaleFactor + (difference * 0.001f), 1f, 8f);
+            _ScaleText.SetText(_CanvasScaler.scaleFactor.ToString("N2"));
+        }
     }
 
     public Category GetCategory(int id) {

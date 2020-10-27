@@ -39,7 +39,12 @@ public class ItemEditor : Singleton<ItemEditor>
             _DropDown.dropdownItems.Add(di);
         }
         _DropDown.UpdateDropdown();
-        _DropDown.ChangeDropdownInfoSilent(item.CategoryID - 1);
+        if (editItem != null) {
+            _DropDown.ChangeDropdownInfoSilent(item.CategoryID - 1);
+        }
+        else {
+            _DropDown.ChangeDropdownInfoSilent(0);
+        }
 
         switch (editMode) {
             case EditMode.Edit:
@@ -52,6 +57,7 @@ public class ItemEditor : Singleton<ItemEditor>
                 break;
             case EditMode.Create:
                 _TitleText.SetText("Erstellen");
+                editItem = null;
                 break;
             default:
                 break;
@@ -60,12 +66,19 @@ public class ItemEditor : Singleton<ItemEditor>
         _ItemEditor.GetComponent<Animator>().Play("Panel Open");
     }
 
+    public void CreateItem() {
+        OpenItemEditor(null, EditMode.Create);
+    }
+
     public async void SaveEdit() {
-        editItem.Name = _Name.text;
-        editItem.Amount = int.Parse(_Amount.text);
-        editItem.Price = double.Parse(_Price.text);
-        editItem.CategoryID = _DropDown.selectedItemIndex;
-        editItem.ItemImage = _Image.texture;
+
+        if (editItem != null) {
+            editItem.Name = _Name.text;
+            editItem.Amount = int.Parse(_Amount.text);
+            editItem.Price = double.Parse(_Price.text);
+            editItem.CategoryID = _DropDown.selectedItemIndex;
+            editItem.ItemImage = _Image.texture;
+        }
 
         await SaveItem(editItem, currentMode);
 
@@ -79,11 +92,13 @@ public class ItemEditor : Singleton<ItemEditor>
         string updateString = "UPDATE items SET name=@NAME,img=@IMG,amount=@AMOUNT,price=@PRICE,category=@CATEGORY WHERE id = @ID";
         string insertString = "INSERT INTO items (name, img, amount, price, category) VALUES (@NAME, @IMG, @AMOUNT, @PRICE, @CATEGORY)";
 
-        Texture2D image = item.ItemImage as Texture2D;
-        byte[] imageBytes = image.EncodeToPNG();
+        Texture2D image;
+        byte[] imageBytes;
 
         switch (mode) {
             case EditMode.Create:
+                image = _Image.texture as Texture2D;
+                imageBytes = image.EncodeToPNG();
                 cmd = new MySqlCommand(insertString, conn);
                 cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 30);
                 cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
@@ -91,13 +106,15 @@ public class ItemEditor : Singleton<ItemEditor>
                 cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
                 cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
 
-                cmd.Parameters["@NAME"].Value = item.Name;
+                cmd.Parameters["@NAME"].Value = _Name.text;
                 cmd.Parameters["@IMG"].Value = imageBytes;
-                cmd.Parameters["@AMOUNT"].Value = item.Amount;
-                cmd.Parameters["@PRICE"].Value = item.Price;
-                cmd.Parameters["@CATEGORY"].Value = item.CategoryID;
+                cmd.Parameters["@AMOUNT"].Value = _Amount.text;
+                cmd.Parameters["@PRICE"].Value = _Price.text;
+                cmd.Parameters["@CATEGORY"].Value = _DropDown.selectedItemIndex+1;
                 break;
             case EditMode.Edit:
+                image = item.ItemImage as Texture2D;
+                imageBytes = image.EncodeToPNG();
                 cmd = new MySqlCommand(updateString, conn);
                 cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 30);
                 cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
