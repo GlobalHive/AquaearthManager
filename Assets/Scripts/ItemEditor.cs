@@ -23,6 +23,24 @@ public class ItemEditor : Singleton<ItemEditor>
         Manager.Instance.Tabs.HidePanels();
         currentMode = editMode;
         editItem = item;
+
+        _DropDown.dropdownItems.Clear();
+        for (int i = 0; i < Manager.Instance.GetCategoryCount; i++) {
+
+            Category curCat = Manager.Instance.GetCategory(i + 1);
+
+            CustomDropdown.Item di = new CustomDropdown.Item {
+                itemIcon = IconManager.Instance.GetIcon(IconType.Arrow),
+                itemName = curCat.CategoryName
+            };
+            di.OnItemSelection = new UnityEngine.Events.UnityEvent();
+            di.OnItemSelection.AddListener(delegate { OnValueChanged(); });
+
+            _DropDown.dropdownItems.Add(di);
+        }
+        _DropDown.UpdateDropdown();
+        _DropDown.ChangeDropdownInfoSilent(item.CategoryID - 1);
+
         switch (editMode) {
             case EditMode.Edit:
                 _TitleText.SetText("Bearbeiten");
@@ -31,23 +49,6 @@ public class ItemEditor : Singleton<ItemEditor>
                 _Price.SetTextWithoutNotify(editItem.Price.ToString("N2"));
                 if(editItem.ItemImage != null)
                     _Image.texture = editItem.ItemImage;
-
-                _DropDown.dropdownItems.Clear();
-                for (int i = 0; i < Manager.Instance.GetCategoryCount; i++) {
-
-                    Category curCat = Manager.Instance.GetCategory(i+1);
-
-                    CustomDropdown.Item di = new CustomDropdown.Item {
-                        itemIcon = IconManager.Instance.GetIcon(IconType.Arrow),
-                        itemName = curCat.CategoryName
-                    };
-                    di.OnItemSelection = new UnityEngine.Events.UnityEvent();
-                    di.OnItemSelection.AddListener(delegate { OnValueChanged(); });
-
-                    _DropDown.dropdownItems.Add(di);
-                }
-                _DropDown.UpdateDropdown();
-                _DropDown.ChangeDropdownInfoSilent(item.CategoryID - 1);
                 break;
             case EditMode.Create:
                 _TitleText.SetText("Erstellen");
@@ -76,12 +77,25 @@ public class ItemEditor : Singleton<ItemEditor>
         MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
         MySqlCommand cmd = new MySqlCommand();
         string updateString = "UPDATE items SET name=@NAME,img=@IMG,amount=@AMOUNT,price=@PRICE,category=@CATEGORY WHERE id = @ID";
+        string insertString = "INSERT INTO items (name, img, amount, price, category) VALUES (@NAME, @IMG, @AMOUNT, @PRICE, @CATEGORY)";
 
         Texture2D image = item.ItemImage as Texture2D;
         byte[] imageBytes = image.EncodeToPNG();
 
         switch (mode) {
             case EditMode.Create:
+                cmd = new MySqlCommand(insertString, conn);
+                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 30);
+                cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
+                cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
+                cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
+                cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
+
+                cmd.Parameters["@NAME"].Value = item.Name;
+                cmd.Parameters["@IMG"].Value = imageBytes;
+                cmd.Parameters["@AMOUNT"].Value = item.Amount;
+                cmd.Parameters["@PRICE"].Value = item.Price;
+                cmd.Parameters["@CATEGORY"].Value = item.CategoryID;
                 break;
             case EditMode.Edit:
                 cmd = new MySqlCommand(updateString, conn);
