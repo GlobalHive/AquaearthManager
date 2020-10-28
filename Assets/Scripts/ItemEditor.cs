@@ -1,6 +1,6 @@
 ﻿using GlobalHive.UI.ModernUI;
 using MySql.Data.MySqlClient;
-using System.Linq.Expressions;
+using Sirenix.OdinInspector;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -8,14 +8,23 @@ using UnityEngine.UI;
 
 public class ItemEditor : Singleton<ItemEditor>
 {
-    [SerializeField] TMP_Text _TitleText;
-    [SerializeField] TMP_InputField _Name, _Amount, _Price;
-    [SerializeField] CustomDropdown _DropDown;
-    [SerializeField] Button _SaveButton;
-    [SerializeField] RawImage _Image;
-    [SerializeField] GameObject _ItemEditor;
+    [FoldoutGroup("References"), SerializeField, SceneObjectsOnly]
+    GameObject _ItemEditor;
+    [FoldoutGroup("References"), SerializeField, SceneObjectsOnly]
+    RawImage _Image;
+    [FoldoutGroup("References"), SerializeField, SceneObjectsOnly]
+    TMP_Text _TitleText;
+    [FoldoutGroup("References"), SerializeField, SceneObjectsOnly]
+    Button _SaveButton;
+    [FoldoutGroup("References"), SerializeField, AssetsOnly]
+    [InlineEditor(InlineEditorModes.LargePreview)]
+    Texture placeHolderTexture = null;
 
-    [SerializeField]Texture placeHolderTexture = null;
+    [FoldoutGroup("Input Fields"), SerializeField, SceneObjectsOnly]
+    TMP_InputField _Name, _Amount, _Price;
+    [FoldoutGroup("Input Fields"), SerializeField, SceneObjectsOnly]
+    CustomDropdown _DropDown;
+
     EditMode currentMode;
     Item editItem = null;
 
@@ -79,9 +88,9 @@ public class ItemEditor : Singleton<ItemEditor>
             editItem.CategoryID = _DropDown.selectedItemIndex;
             editItem.ItemImage = _Image.texture;
         }
-
+        Manager.Instance.LoadingScreen.SetActive(true);
         await SaveItem(editItem, currentMode);
-
+        Manager.Instance.LoadingScreen.SetActive(false);
         CancelEdit();
         Manager.Instance.ReloadInventory(-1);
     }

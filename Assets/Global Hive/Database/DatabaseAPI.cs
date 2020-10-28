@@ -18,7 +18,7 @@ namespace GlobalHive.DatabaseAPI
         public static readonly string SSL_MODE = "none";
 
         // Die Anzahl an Verbindungen, die gleichzeitig offen sind.
-        public static readonly int POOL_SIZE = 32;
+        public static readonly int POOL_SIZE = 8;
 
         // Der Intervall (in Minuten) in dem die Verbindungen erneuert werden.
         public static readonly int RECONNECT_INTERVAL = 180;
@@ -33,7 +33,7 @@ namespace GlobalHive.DatabaseAPI
             this.availableConnections = new List<MySqlConnection>();
             Logger.Instance.Log("Starting Database");
             PopulatePool();
-            StartReconnectThread();
+            //StartReconnectThread();
         }
 
         /// <summary>
@@ -103,8 +103,11 @@ namespace GlobalHive.DatabaseAPI
                 {
                     Task.Delay(1).Wait();
                 }
+
             } while (connection == null);
 
+            connection.Open();
+            
             return connection;
         }
 
@@ -135,7 +138,7 @@ namespace GlobalHive.DatabaseAPI
             }
 
             Monitor.Enter(availableConnections);
-
+            connection.Close();
             availableConnections.Add(connection);
 
             Monitor.Exit(availableConnections);
@@ -153,10 +156,10 @@ namespace GlobalHive.DatabaseAPI
                 try
                 {
                     MySqlConnection connection = new MySqlConnection(connectionDescription);
-
-                    connection.Open();
+                    //connection.Open();
 
                     availableConnections.Add(connection);
+
                 }
                 catch (Exception exc)
                 {

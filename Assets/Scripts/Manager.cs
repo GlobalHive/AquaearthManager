@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using Sirenix.OdinInspector;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -7,24 +8,30 @@ using UnityEngine.UI;
 
 public class Manager : Singleton<Manager>
 {
-    [SerializeField] CanvasScaler _CanvasScaler;
-    [SerializeField] TMP_Text _ScaleText;
-    [SerializeField] GameObject _CategoryTemplate, _ItemTemplate;
-    [SerializeField] Transform _CategoryArray, _ItemArray;
+    // Main Canvas
+    [FoldoutGroup("Main Canvas References"), SerializeField, SceneObjectsOnly, InlineEditor(InlineEditorModes.GUIOnly)]
+    CanvasScaler _CanvasScaler;
+    [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
+    public GameObject LoadingScreen;
+
+    // Category
+    [TabGroup("Category"), SerializeField, SceneObjectsOnly]
+    GameObject _CategoryTemplate;
+    [TabGroup("Category"), SerializeField, SceneObjectsOnly]
+    Transform _CategoryArray;
+
+    // Item
+    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
+    GameObject _ItemTemplate;
+    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
+    Transform _ItemArray;
+
+    [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
-    private int _OpenCategory = 0;
 
-    [SerializeField]Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
-    [SerializeField]Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
-
-    public void ScaleUI(bool add) {
-        if(add)
-            _CanvasScaler.scaleFactor += 0.1f;
-        else
-            _CanvasScaler.scaleFactor -= 0.1f;
-
-        _ScaleText.SetText(_CanvasScaler.scaleFactor.ToString("N2"));
-    }
+    int _OpenCategory = 0;
+    Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
+    Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
 
     private void Start() {
 
@@ -51,8 +58,7 @@ public class Manager : Singleton<Manager>
             float currentMagnitude = (touchZero.position - touchOne.position).magnitude;
 
             float difference = currentMagnitude - prevMagnitude;
-            _CanvasScaler.scaleFactor = Mathf.Clamp(_CanvasScaler.scaleFactor + (difference * 0.001f), 1f, 8f);
-            _ScaleText.SetText(_CanvasScaler.scaleFactor.ToString("N2"));
+            _CanvasScaler.scaleFactor = Mathf.Clamp(_CanvasScaler.scaleFactor + (difference * 0.001f), 1f, 1.4f);
         }
     }
 
@@ -77,6 +83,8 @@ public class Manager : Singleton<Manager>
         // Datenbank setup
         MySqlConnection _conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
         MySqlCommand _cmd = new MySqlCommand("SELECT * FROM categorys", _conn);
+
+        LoadingScreen.SetActive(true);
 
          // Geht alle resultate durch
         using (MySqlDataReader reader = _cmd.ExecuteReader()) {
@@ -107,6 +115,7 @@ public class Manager : Singleton<Manager>
         // Schliesst und beendet die datenbank verbindung
         _cmd.Dispose();
         GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(_conn);
+        LoadingScreen.SetActive(false);
     }
     public void ClearCategories() {
         // Löscht alle kategorie objekte ausser das template
@@ -134,6 +143,8 @@ public class Manager : Singleton<Manager>
 
         MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
         MySqlCommand cmd;
+
+        LoadingScreen.SetActive(true);
 
         if (category != 0)
             cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}'", conn);
@@ -167,6 +178,7 @@ public class Manager : Singleton<Manager>
 
         cmd.Dispose();
         GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+        LoadingScreen.SetActive(false);
     }
 
     private void ClearInventory() {
@@ -183,7 +195,6 @@ public class Manager : Singleton<Manager>
     }
 }
 
-[System.Serializable]
 public class Category {
     private GameObject _CategoryObject;
     private TMP_Text _Title;
@@ -249,7 +260,6 @@ public class Category {
     }
 }
 
-[System.Serializable]
 public class Item
 {
     private GameObject _ItemObject;

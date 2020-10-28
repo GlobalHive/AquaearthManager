@@ -15,6 +15,9 @@ Version history
 ---------------
 
 Current version [ 0.1.0 ]
+- Fixed database error ? - (LTT - Pending)
+- Added loading screen
+- Added odin inspectors
 - Added zoom & pinch zoom support
 - Added item creation inside application
 - Added item saving and image selection
