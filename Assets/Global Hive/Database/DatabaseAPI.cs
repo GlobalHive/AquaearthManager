@@ -33,7 +33,6 @@ namespace GlobalHive.DatabaseAPI
             this.availableConnections = new List<MySqlConnection>();
             Logger.Instance.Log("Starting Database");
             PopulatePool();
-            //StartReconnectThread();
         }
 
         /// <summary>
@@ -168,57 +167,6 @@ namespace GlobalHive.DatabaseAPI
                 }
             }
         }
-
-        /// <summary>
-        /// Startet den Thread, der die Verbindungen des Pools in einem bestimmten Intervall erneuert.
-        /// </summary>
-        private void StartReconnectThread()
-        {
-            Task.Run(() =>
-            {
-                while (true)
-                {
-                    Task.Delay(1000 * 60 * RECONNECT_INTERVAL).Wait();
-
-                    int connectionsClosed = 0;
-
-                    do
-                    {
-                        Monitor.Enter(availableConnections);
-
-                        bool sleep = false;
-
-                        if (availableConnections.Count > 0)
-                        {
-                            MySqlConnection connection = availableConnections[0];
-
-                            availableConnections.RemoveAt(0);
-
-                            connection.Close();
-                            connectionsClosed++;
-                        }
-                        else
-                        {
-                            sleep = true;
-                        }
-
-                        Monitor.Exit(availableConnections);
-
-                        if (sleep)
-                        {
-                            Task.Delay(1).Wait();
-                        }
-                    } while (connectionsClosed < POOL_SIZE);
-
-                    Monitor.Enter(availableConnections);
-
-                    PopulatePool();
-
-                    Monitor.Exit(availableConnections);
-                }
-            });
-        }
-
 
         private bool IsReaderAttached(MySqlConnection conn)
         {

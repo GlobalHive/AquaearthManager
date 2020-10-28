@@ -15,7 +15,8 @@ Version history
 ---------------
 
 Current version [ 0.1.0 ]
-- Fixed database error ? - (LTT - Pending)
+- Rewritten DatabaseAPI
+- Fixed database error
 - Added loading screen
 - Added odin inspectors
 - Added zoom & pinch zoom support
