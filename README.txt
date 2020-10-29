@@ -20,7 +20,11 @@ ToDo
 Version history
 ---------------
 
-Current version [ 0.1.0 ]
+Current version [ 0.1.1 ]
+- Fixed input values required
+- Increased name varchar to 255
+
+Version [ 0.1.0 ]
 - Started selling window
 - Added selectable object component (Global Hive)
 - Rewritten DatabaseAPI

@@ -104,12 +104,19 @@ public class ItemEditor : Singleton<ItemEditor>
         Texture2D image;
         byte[] imageBytes;
 
+        if (string.IsNullOrEmpty(_Name.text))
+            _Name.SetTextWithoutNotify("ERROR #001 - NNF");
+        if (string.IsNullOrEmpty(_Amount.text))
+            _Amount.SetTextWithoutNotify("0");
+        if (string.IsNullOrEmpty(_Price.text))
+            _Price.SetTextWithoutNotify("0.00");
+
         switch (mode) {
             case EditMode.Create:
                 image = _Image.texture as Texture2D;
                 imageBytes = image.EncodeToPNG();
                 cmd = new MySqlCommand(insertString, conn);
-                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 30);
+                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
                 cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
                 cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
                 cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
@@ -125,7 +132,7 @@ public class ItemEditor : Singleton<ItemEditor>
                 image = item.ItemImage as Texture2D;
                 imageBytes = image.EncodeToPNG();
                 cmd = new MySqlCommand(updateString, conn);
-                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 30);
+                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
                 cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
                 cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
                 cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
