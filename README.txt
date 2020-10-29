@@ -11,10 +11,18 @@ Support
 * E-mail support: support@globalhive.de
 * Website: https://globalhive.de
 
+ToDo
+---------------
+
+- Disable selling button on reload
+
+
 Version history
 ---------------
 
 Current version [ 0.1.0 ]
+- Started selling window
+- Added selectable object component (Global Hive)
 - Rewritten DatabaseAPI
 - Fixed database error
 - Added loading screen

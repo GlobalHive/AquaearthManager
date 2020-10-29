@@ -22,6 +22,8 @@ public class Manager : Singleton<Manager>
 
     // Item
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
+    Button _SellButton;
+    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     GameObject _ItemTemplate;
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     Transform _ItemArray;
@@ -32,6 +34,8 @@ public class Manager : Singleton<Manager>
     int _OpenCategory = 0;
     Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
     Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
+
+    List<Item> selectedItems = new List<Item>();
 
     private void Start() {
 
@@ -44,6 +48,9 @@ public class Manager : Singleton<Manager>
 
          // Startet das laden der Kategorien
         StartCoroutine(LoadCategories());
+        
+        // Setzt die klick funktion fest für den verkauf knopf (Gibt die liste mit)
+        _SellButton.onClick.AddListener(() => ItemSeller.Instance.OpenItemSeller(selectedItems));
     }
 
     private void Update() {
@@ -73,6 +80,8 @@ public class Manager : Singleton<Manager>
     #region Category
     public void ReloadCategorys() {
         StartCoroutine(LoadCategories());
+
+        selectedItems.Clear();
     }
 
     IEnumerator LoadCategories() {
@@ -133,6 +142,8 @@ public class Manager : Singleton<Manager>
             StartCoroutine(LoadItems(_OpenCategory));
         else
             StartCoroutine(LoadItems(category));
+
+        selectedItems.Clear();
     }
 
     IEnumerator LoadItems(int category) {
@@ -172,6 +183,18 @@ public class Manager : Singleton<Manager>
                 currentIndex++;
 
                 item.GetItemObject().SetActive(true);
+                item.GetItemObject().GetComponent<SelectableObject>().SetReturnObject(item);
+                item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.AddListener((obj, selected) => {
+                    if (selected) {
+                        selectedItems.Add((Item)obj);
+                    }
+                    else {
+                        selectedItems.Remove((Item)obj);
+                    }
+
+                    _SellButton.interactable = selectedItems.Count > 0;
+                });
+
                 yield return null;
             }
         }
@@ -183,6 +206,7 @@ public class Manager : Singleton<Manager>
 
     private void ClearInventory() {
         foreach (Item item in _CategoryItems.Values) {
+            item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.RemoveAllListeners();
             Destroy(item.GetItemObject());
         }
         _CategoryItems.Clear();
