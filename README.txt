@@ -15,12 +15,16 @@ ToDo
 ---------------
 
 - Disable selling button on reload
+- Fix selling expansion
 
 
 Version history
 ---------------
 
-Current version [ 0.1.1 ]
+Current version [ 0.2.0 ]
+- Finished selling module design
+
+Version [ 0.1.1 ]
 - Fixed input values required
 - Increased name varchar to 255
 

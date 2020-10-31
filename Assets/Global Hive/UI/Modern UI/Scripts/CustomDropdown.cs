@@ -80,6 +80,8 @@ namespace GlobalHive.UI.ModernUI
                 itemButton = go.GetComponent<Button>();
                 itemButton.onClick.AddListener(dropdownItems[i].OnItemSelection.Invoke);
                 itemButton.onClick.AddListener(Animate);
+                int temp = i;
+                itemButton.onClick.AddListener(()=>ChangeDropdownInfo(temp));
 
                 if (invokeAtStart == true)
                 {
@@ -87,7 +89,7 @@ namespace GlobalHive.UI.ModernUI
                 }
             }
 
-            if (disableSelectedSwitch == false)
+            if (disableSelectedSwitch == false && dropdownItems.Count != 0)
             {
                 selectedText.text = dropdownItems[selectedItemIndex].itemName;
                 selectedImage.sprite = dropdownItems[selectedItemIndex].itemIcon;
@@ -98,7 +100,6 @@ namespace GlobalHive.UI.ModernUI
                 itemList.padding.right = 25;
                 scrollbar.SetActive(true);
             }
-
             else
             {
                 itemList.padding.right = 8;
