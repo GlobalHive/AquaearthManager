@@ -13,15 +13,19 @@ Support
 
 ToDo
 ---------------
-
-- Disable selling button on reload
 - Fix selling expansion
+- Add search bar
+- Fix selection resetting after category switch
 
 
 Version history
 ---------------
 
 Current version [ 0.2.0 ]
+- Disabled selling button on reload
+- Added Pagination ( 100 items per page)
+- Fixed ID's
+- Fixed sorting order
 - Finished selling module design
 
 Version [ 0.1.1 ]

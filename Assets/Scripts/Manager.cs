@@ -27,6 +27,8 @@ public class Manager : Singleton<Manager>
     GameObject _ItemTemplate;
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     Transform _ItemArray;
+    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
+    TMP_Text _PaginationText;
 
     [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
@@ -36,6 +38,19 @@ public class Manager : Singleton<Manager>
     Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
 
     List<Item> selectedItems = new List<Item>();
+    int maxPage = 0;
+    int currentPage = 0;
+
+    public int MaxPage {
+        get { return maxPage; }
+        set {
+            maxPage = value;
+            if (currentPage > maxPage)
+                currentPage = 0;
+
+            _PaginationText.SetText($"{currentPage+1} / {MaxPage+1}");
+        }
+    }
 
     private void Start() {
 
@@ -85,13 +100,11 @@ public class Manager : Singleton<Manager>
     }
 
     IEnumerator LoadCategories() {
-        int currentIndex = 1;
-
         ClearCategories();
 
         // Datenbank setup
         MySqlConnection _conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand _cmd = new MySqlCommand("SELECT * FROM categorys", _conn);
+        MySqlCommand _cmd = new MySqlCommand("SELECT * FROM categorys ORDER BY name ASC", _conn);
 
         LoadingScreen.SetActive(true);
 
@@ -114,8 +127,7 @@ public class Manager : Singleton<Manager>
                 Category _Cat = new Category(_CategoryTemplate, _CategoryArray, reader.GetString("name"), reader.GetInt32("id"), image);
 
                 // Fügt den eintrag in die liste ein
-                _Categorys.Add(currentIndex, _Cat);
-                currentIndex++;
+                _Categorys.Add(reader.GetInt32("id"), _Cat);
 
                 _Cat.GetCategroyObject().SetActive(true);
                 yield return null;
@@ -144,10 +156,10 @@ public class Manager : Singleton<Manager>
             StartCoroutine(LoadItems(category));
 
         selectedItems.Clear();
+        _SellButton.interactable = false;
     }
 
     IEnumerator LoadItems(int category) {
-        int currentIndex = 1;
         _OpenCategory = category;
 
         ClearInventory();
@@ -157,10 +169,21 @@ public class Manager : Singleton<Manager>
 
         LoadingScreen.SetActive(true);
 
-        if (category != 0)
-            cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}'", conn);
+        if(category != 0)
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items WHERE category = '{category}'", conn);
         else
-            cmd = new MySqlCommand($"SELECT * FROM items", conn);
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items",conn);
+        using (MySqlDataReader reader = cmd.ExecuteReader()) {
+            reader.Read();
+            MaxPage = reader.GetInt32("COUNT(*)") / 100;
+        }
+        cmd.Dispose();
+
+
+        if (category != 0)
+            cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage+1 * 100}");
+        else
+            cmd = new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}", conn);
 
         using (MySqlDataReader reader = cmd.ExecuteReader()) {
             while (reader.Read()) {
@@ -178,9 +201,7 @@ public class Manager : Singleton<Manager>
                 Item item = new Item(_ItemTemplate, _ItemArray, reader.GetInt32("id"),reader.GetString("name"),reader.GetInt32("amount"), 
                     reader.GetDouble("price"), reader.GetInt32("category"), image);
 
-                _CategoryItems.Add(currentIndex, item);
-
-                currentIndex++;
+                _CategoryItems.Add(reader.GetInt32("id"), item);
 
                 item.GetItemObject().SetActive(true);
                 item.GetItemObject().GetComponent<SelectableObject>().SetReturnObject(item);
@@ -212,6 +233,23 @@ public class Manager : Singleton<Manager>
         _CategoryItems.Clear();
     }
     #endregion
+
+    public void SetPagination(bool increase) {
+        if (increase) {
+            if (currentPage == maxPage)
+                currentPage = 0;
+            else
+                currentPage++;
+        }
+        else {
+            if (currentPage == 0)
+                currentPage = maxPage;
+            else
+                currentPage--;
+        }
+
+        ReloadInventory(-1);
+    }
 
     public void OnApplicationQuit() {
         // Reset min window grösse, sonst error
@@ -322,7 +360,7 @@ public class Item
     public int CategoryID {
         get { return _Category.CategoryID; }
         set {
-            _Category = Manager.Instance.GetCategory(value+1);
+            _Category = Manager.Instance.GetCategory(value);
         }
     }
 
