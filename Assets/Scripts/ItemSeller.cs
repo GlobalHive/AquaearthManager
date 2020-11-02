@@ -37,10 +37,10 @@ public class ItemSeller : Singleton<ItemSeller>
     public void CreateSellingObject(Item item) {
         GameObject go = Instantiate(sellingListTemplate, sellingListList);
         RawImage rawImage = go.transform.Find("Image").GetComponent<RawImage>();
-        TMP_Text name = go.transform.Find("Title").GetComponent<TMP_Text>();
-        TMP_Text category = go.transform.Find("Category").GetComponent<TMP_Text>();
-        CustomDropdown amount = go.transform.Find("DropDownAmount").GetComponent<CustomDropdown>();
-        TMP_Text price = go.transform.Find("Price").GetComponent<TMP_Text>();
+        TMP_Text name = go.transform.Find("Content/Title").GetComponent<TMP_Text>();
+        TMP_Text category = go.transform.Find("Content/Category").GetComponent<TMP_Text>();
+        CustomDropdown amount = go.transform.Find("Content/DropDownAmount").GetComponent<CustomDropdown>();
+        TMP_Text price = go.transform.Find("Content/Price").GetComponent<TMP_Text>();
 
         rawImage.texture = item.ItemImage;
         name.SetText(item.Name);
@@ -68,7 +68,7 @@ public class ItemSeller : Singleton<ItemSeller>
     public double RecalculatePrice() {
         double price = 0.00;
         for (int i = 0; i < sellingListList.childCount-1; i++) {
-            price += sellingListList.GetChild(i+1).Find("DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex * sellingItems[i].Price;
+            price += sellingListList.GetChild(i+1).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex * sellingItems[i].Price;
         }
         return price;
     }

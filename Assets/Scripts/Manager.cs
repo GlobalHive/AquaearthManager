@@ -181,7 +181,7 @@ public class Manager : Singleton<Manager>
 
 
         if (category != 0)
-            cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage+1 * 100}");
+            cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage+1 * 100}", conn);
         else
             cmd = new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}", conn);
 
@@ -213,7 +213,7 @@ public class Manager : Singleton<Manager>
                         selectedItems.Remove((Item)obj);
                     }
 
-                    _SellButton.interactable = selectedItems.Count > 0;
+                    //_SellButton.interactable = selectedItems.Count > 0;
                 });
 
                 yield return null;

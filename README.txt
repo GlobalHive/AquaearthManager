@@ -13,15 +13,16 @@ Support
 
 ToDo
 ---------------
-- Fix selling expansion
+- Add scrollbar to categorys
 - Add search bar
 - Fix selection resetting after category switch
-
+- Rewrite layout group, max
 
 Version history
 ---------------
 
 Current version [ 0.2.0 ]
+- Fixed selling expansion
 - Disabled selling button on reload
 - Added Pagination ( 100 items per page)
 - Fixed ID's
