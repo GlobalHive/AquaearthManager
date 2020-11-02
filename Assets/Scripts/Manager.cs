@@ -207,13 +207,14 @@ public class Manager : Singleton<Manager>
                 item.GetItemObject().GetComponent<SelectableObject>().SetReturnObject(item);
                 item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.AddListener((obj, selected) => {
                     if (selected) {
-                        selectedItems.Add((Item)obj);
+                        if(item.Amount > 0)
+                            selectedItems.Add((Item)obj);
                     }
                     else {
                         selectedItems.Remove((Item)obj);
                     }
 
-                    //_SellButton.interactable = selectedItems.Count > 0;
+                    _SellButton.interactable = selectedItems.Count > 0;
                 });
 
                 yield return null;

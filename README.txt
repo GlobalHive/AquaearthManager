@@ -17,11 +17,13 @@ ToDo
 - Add search bar
 - Fix selection resetting after category switch
 - Rewrite layout group, max
+- Fix edit ID ?
 
 Version history
 ---------------
 
 Current version [ 0.2.0 ]
+- Finished item selling module
 - Fixed selling expansion
 - Disabled selling button on reload
 - Added Pagination ( 100 items per page)

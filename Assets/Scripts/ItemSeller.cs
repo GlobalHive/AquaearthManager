@@ -1,7 +1,9 @@
 ﻿using GlobalHive.UI.ModernUI;
+using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -54,8 +56,6 @@ public class ItemSeller : Singleton<ItemSeller>
             amount.dropdownItems.Add(_item);
         }
         amount.ChangeDropdownInfo(1);
-        //price.SetText("CHF " + (item.Price * amount.selectedItemIndex).ToString("N2"));
-
         go.SetActive(true);
     }
 
@@ -71,5 +71,49 @@ public class ItemSeller : Singleton<ItemSeller>
             price += sellingListList.GetChild(i+1).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex * sellingItems[i].Price;
         }
         return price;
+    }
+
+    public void CancelSellingItems() {
+        sellingItems.Clear();
+        for (int i = 1; i < sellingListList.childCount; i++) {
+            Destroy(sellingListList.GetChild(i).gameObject);
+        }
+        Manager.Instance.Tabs.ShowPanels();
+        animator.Play("Panel Close");
+    }
+
+    public async void OnItemSellerSave() {
+        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
+        MySqlCommand cmd = new MySqlCommand("SELECT sale_id FROM sales ORDER BY id DESC LIMIT 1", conn);
+        int lastSalesId = 0;
+        int amount = 0;
+
+        using (MySqlDataReader reader = cmd.ExecuteReader()) {
+            while (reader.Read()) {
+                lastSalesId = reader.GetInt32("sale_id");
+                lastSalesId++;
+            }
+        }
+
+        for (int i = 0; i < sellingItems.Count; i++) {
+            amount = sellingListList.GetChild(i+1).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex;
+            if (amount == 0)
+                continue;
+
+            cmd.CommandText = $"INSERT INTO sales (sale_id, item_id, amount) VALUES ('{lastSalesId}', '{sellingItems[i].ID}', '{amount}'); " +
+                $"UPDATE items SET amount = '{sellingItems[i].Amount - amount}' WHERE id = '{sellingItems[i].ID}';";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        cmd.Dispose();
+        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+
+        animator.Play("Panel Close");
+        sellingItems.Clear();
+        for (int i = 1; i < sellingListList.childCount; i++) {
+            Destroy(sellingListList.GetChild(i).gameObject);
+        }
+        Manager.Instance.Tabs.ShowPanels();
+        Manager.Instance.ReloadInventory(-1);
     }
 }
