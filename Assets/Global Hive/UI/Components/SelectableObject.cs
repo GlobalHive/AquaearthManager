@@ -45,4 +45,14 @@ public class SelectableObject : MonoBehaviour, IPointerEnterHandler, IPointerExi
         if (!IsSelected && !DisableAnimations)
             animator.Play("PointerExit");
     }
+
+    public void SetSelected(bool isSelected, bool silent = false) {
+        IsSelected = isSelected;
+        if (!DisableAnimations) {
+            animator.Play(IsSelected ? "Selected" : "DeSelected");
+        }
+
+        if(!silent)
+            OnSelectionChanged.Invoke(ReturnObject, IsSelected);
+    }
 }

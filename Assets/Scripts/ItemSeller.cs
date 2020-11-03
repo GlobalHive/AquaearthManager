@@ -73,7 +73,6 @@ public class ItemSeller : Singleton<ItemSeller>
     }
 
     public void CancelSellingItems() {
-        sellingItems.Clear();
         for (int i = 1; i < sellingListList.childCount; i++) {
             Destroy(sellingListList.GetChild(i).gameObject);
         }

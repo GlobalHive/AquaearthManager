@@ -37,6 +37,7 @@ public class Manager : Singleton<Manager>
     Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
     Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
 
+    [SerializeField]
     List<Item> selectedItems = new List<Item>();
     int maxPage = 0;
     int currentPage = 0;
@@ -95,8 +96,6 @@ public class Manager : Singleton<Manager>
     #region Category
     public void ReloadCategorys() {
         StartCoroutine(LoadCategories());
-
-        selectedItems.Clear();
     }
 
     IEnumerator LoadCategories() {
@@ -154,9 +153,6 @@ public class Manager : Singleton<Manager>
             StartCoroutine(LoadItems(_OpenCategory));
         else
             StartCoroutine(LoadItems(category));
-
-        selectedItems.Clear();
-        _SellButton.interactable = false;
     }
 
     IEnumerator LoadItems(int category) {
@@ -216,6 +212,13 @@ public class Manager : Singleton<Manager>
 
                     _SellButton.interactable = selectedItems.Count > 0;
                 });
+
+                selectedItems.ForEach(delegate (Item _item) {
+                    if(_item.Name == item.Name)
+                        item.GetItemObject().GetComponent<SelectableObject>().SetSelected(true, true);
+                });
+
+                _SellButton.interactable = selectedItems.Count > 0;
 
                 yield return null;
             }

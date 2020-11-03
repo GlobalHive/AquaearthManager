@@ -13,16 +13,18 @@ Support
 
 ToDo
 ---------------
-- Add scrollbar to categorys
 - Add search bar
-- Fix selection resetting after category switch
 - Rewrite layout group, max
-- Fix edit ID ?
+
 
 Version history
 ---------------
 
-Current version [ 0.2.0 ]
+- Fixed selection resetting after switch
+- Redesigned foCurrent version [ 0.2.0 ]
+nt atlas
+- Fixed Category Scroll Rect
+- Fixed edit ID's
 - Finished item selling module
 - Fixed selling expansion
 - Disabled selling button on reload
