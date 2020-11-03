@@ -318,9 +318,12 @@ public class Manager : Singleton<Manager>
             foreach (Sales.SoldItems si in item.SoldItemsList) {
                 currentPrice += GetItemPrice(si.ItemID).Result * si.Amount;
             }
+            item.FullPrice = currentPrice;
 
             go.transform.Find("Content/Price").GetComponent<TMP_Text>().SetText($"CHF {currentPrice.ToString("N2")}");
-
+            go.GetComponent<Button>().onClick.AddListener(delegate() {
+                SoldItem.Instance.ShowSoldItem(item);
+            });
             go.SetActive(true);
             yield return null;
         }
@@ -492,6 +495,7 @@ public class Sales {
     public int SaleID;
     public List<SoldItems> SoldItemsList = new List<SoldItems>();
     public DateTime SoldDateTime;
+    public double FullPrice;
 
     public class SoldItems {
         public int ItemID;

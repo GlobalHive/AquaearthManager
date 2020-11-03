@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 
 [System.Serializable]
@@ -26,7 +25,7 @@ public class ObjectPooler : MonoBehaviour {
         foreach (ObjectPoolItem item in itemsToPool) {
             for (int i = 0; i < item.amountToPool; i++) {
                 GameObject obj = (GameObject)Instantiate(item.objectToPool, item.parent);
-                //obj.SetActive(false);
+                obj.SetActive(false);
                 pooledObjects.Add(obj);
             }
         }
