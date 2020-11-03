@@ -19,10 +19,10 @@ ToDo
 
 Version history
 ---------------
-
+Current Version [ 0.2.0 ]
+- Added sales list
 - Fixed selection resetting after switch
-- Redesigned foCurrent version [ 0.2.0 ]
-nt atlas
+- Redesigned font atlas
 - Fixed Category Scroll Rect
 - Fixed edit ID's
 - Finished item selling module

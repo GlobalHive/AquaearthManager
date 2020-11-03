@@ -1,7 +1,10 @@
 ﻿using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,6 +16,9 @@ public class Manager : Singleton<Manager>
     CanvasScaler _CanvasScaler;
     [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
     public GameObject LoadingScreen;
+    [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
+    public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
+
 
     // Category
     [TabGroup("Category"), SerializeField, SceneObjectsOnly]
@@ -30,14 +36,16 @@ public class Manager : Singleton<Manager>
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     TMP_Text _PaginationText;
 
-    [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
-    public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
+    // Sales
+    [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
+    GameObject _SalesTemplate;
+    [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
+    Transform _SalesArray;
 
     int _OpenCategory = 0;
     Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
     Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
 
-    [SerializeField]
     List<Item> selectedItems = new List<Item>();
     int maxPage = 0;
     int currentPage = 0;
@@ -154,7 +162,6 @@ public class Manager : Singleton<Manager>
         else
             StartCoroutine(LoadItems(category));
     }
-
     IEnumerator LoadItems(int category) {
         _OpenCategory = category;
 
@@ -228,7 +235,6 @@ public class Manager : Singleton<Manager>
         GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
         LoadingScreen.SetActive(false);
     }
-
     private void ClearInventory() {
         foreach (Item item in _CategoryItems.Values) {
             item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.RemoveAllListeners();
@@ -236,8 +242,6 @@ public class Manager : Singleton<Manager>
         }
         _CategoryItems.Clear();
     }
-    #endregion
-
     public void SetPagination(bool increase) {
         if (increase) {
             if (currentPage == maxPage)
@@ -254,6 +258,87 @@ public class Manager : Singleton<Manager>
 
         ReloadInventory(-1);
     }
+    #endregion
+
+    #region Sales
+    public async void LoadSales() {
+        LoadingScreen.SetActive(true);
+        ClearSalesList();
+        Dictionary<int, Sales> _Sales = await GetSales();
+        StartCoroutine(CreateSalesItems(_Sales));    }
+    async Task<Dictionary<int,Sales>> GetSales() {
+        List<DatabaseSales> dbs = new List<DatabaseSales>();
+        Dictionary<int, Sales> sales = new Dictionary<int, Sales>();
+        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
+        MySqlCommand cmd = new MySqlCommand("SELECT * FROM sales ORDER BY date ASC", conn);
+
+        using (MySqlDataReader reader = cmd.ExecuteReader()) {
+            while (await reader.ReadAsync()) {
+                DatabaseSales databaseSales = new DatabaseSales {
+                    ID = reader.GetInt32("id"),
+                    SalesID = reader.GetInt32("sale_id"),
+                    ItemID = reader.GetInt32("item_id"),
+                    Amount = reader.GetInt32("amount"),
+                    DateTime = reader.GetDateTime("date")
+                };
+                dbs.Add(databaseSales);
+            }
+        }
+        cmd.Dispose();
+        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+
+        foreach (DatabaseSales item in dbs) {
+            if (sales.ContainsKey(item.SalesID)) {
+                sales[item.SalesID].SoldItemsList.Add(new Sales.SoldItems {
+                    ItemID = item.ItemID,
+                    Amount = item.Amount
+                });
+            }
+            else {
+                Sales s = new Sales();
+                s.SaleID = item.SalesID;
+                s.SoldItemsList = new List<Sales.SoldItems>();
+                s.SoldItemsList.Add(new Sales.SoldItems { ItemID = item.ItemID, Amount = item.Amount });
+                s.SoldDateTime = item.DateTime;
+
+                sales.Add(item.SalesID, s);
+            }
+        }
+
+        return sales;
+    }
+    IEnumerator CreateSalesItems(Dictionary<int,Sales> sales) {
+        foreach (Sales item in sales.Values) {
+            double currentPrice = 0;
+
+            GameObject go = Instantiate(_SalesTemplate, _SalesArray);
+            go.transform.Find("Content/Title").GetComponent<TMP_Text>().SetText(item.SoldDateTime.ToString("dd/MM/yyyy HH:mm"));
+            go.transform.Find("Content/Artikel").GetComponent<TMP_Text>().SetText($"{item.SoldItemsList.Count} Artikel");
+
+            foreach (Sales.SoldItems si in item.SoldItemsList) {
+                currentPrice += GetItemPrice(si.ItemID).Result * si.Amount;
+            }
+
+            go.transform.Find("Content/Price").GetComponent<TMP_Text>().SetText($"CHF {currentPrice.ToString("N2")}");
+
+            go.SetActive(true);
+            yield return null;
+        }
+        LoadingScreen.SetActive(false);
+    }
+
+    async Task<double> GetItemPrice(int itemID) {
+        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
+        MySqlCommand cmd = new MySqlCommand($"SELECT price FROM items WHERE id = '{itemID}'", conn);
+        object obj = await cmd.ExecuteScalarAsync();
+        return (double)obj;
+    }
+    public void ClearSalesList() {
+        for (int i = 1; i < _SalesArray.childCount; i++) {
+            Destroy(_SalesArray.GetChild(i).gameObject);
+        }
+    }
+    #endregion
 
     public void OnApplicationQuit() {
         // Reset min window grösse, sonst error
@@ -401,4 +486,24 @@ public class Item
 
         _ItemObject.transform.Find("btnEdit").GetComponent<Button>().onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(this,ItemEditor.EditMode.Edit));
     }
+}
+
+public class Sales {
+    public int SaleID;
+    public List<SoldItems> SoldItemsList = new List<SoldItems>();
+    public DateTime SoldDateTime;
+
+    public class SoldItems {
+        public int ItemID;
+        public int Amount;
+    }
+
+}
+
+public class DatabaseSales {
+    public int ID;
+    public int SalesID;
+    public int ItemID;
+    public int Amount;
+    public DateTime DateTime;
 }
