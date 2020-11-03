@@ -85,7 +85,7 @@ public class ItemEditor : Singleton<ItemEditor>
             editItem.Name = _Name.text;
             editItem.Amount = int.Parse(_Amount.text);
             editItem.Price = double.Parse(_Price.text);
-            editItem.CategoryID = _DropDown.selectedItemIndex;
+            editItem.CategoryID = _DropDown.selectedItemIndex+1;
             editItem.ItemImage = _Image.texture;
         }
         Manager.Instance.LoadingScreen.SetActive(true);
