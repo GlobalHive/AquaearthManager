@@ -100,13 +100,45 @@ namespace GlobalHive.DatabaseAPI
 
                 if (sleep)
                 {
+                    Logger.Instance.LogE("No connection avaiable");
                     Task.Delay(1).Wait();
+                    break;
                 }
 
             } while (connection == null);
 
             connection.Open();
             
+            return connection;
+        }
+
+        public async Task<MySqlConnection> GetConnectionAsync() {
+            MySqlConnection connection = null;
+
+            do {
+                Monitor.Enter(availableConnections);
+
+                bool sleep = false;
+
+                if (availableConnections.Count > 0) {
+                    connection = availableConnections[0];
+
+                    availableConnections.RemoveAt(0);
+                }
+                else {
+                    sleep = true;
+                }
+
+                Monitor.Exit(availableConnections);
+
+                if (sleep) {
+                    Task.Delay(1).Wait();
+                }
+
+            } while (connection == null);
+
+            await connection.OpenAsync();
+
             return connection;
         }
 
@@ -138,6 +170,14 @@ namespace GlobalHive.DatabaseAPI
 
             Monitor.Enter(availableConnections);
             connection.Close();
+            availableConnections.Add(connection);
+
+            Monitor.Exit(availableConnections);
+        }
+
+        public async Task FreeConnectionAsync(MySqlConnection connection) {
+            Monitor.Enter(availableConnections);
+            await connection.CloseAsync();
             availableConnections.Add(connection);
 
             Monitor.Exit(availableConnections);

@@ -9,14 +9,14 @@ public class ObjectPoolItem {
     public bool shouldExpand;
 }
 
-public class ObjectPooler : MonoBehaviour {
+public class ObjectPooler : Singleton<ObjectPooler> {
 
-    public static ObjectPooler SharedInstance;
+    //public static ObjectPooler SharedInstance;
     public List<ObjectPoolItem> itemsToPool;
     public List<GameObject> pooledObjects;
 
     void Awake() {
-	    SharedInstance = this;
+	    //SharedInstance = this;
     }
 
     // Use this for initialization
@@ -25,7 +25,6 @@ public class ObjectPooler : MonoBehaviour {
         foreach (ObjectPoolItem item in itemsToPool) {
             for (int i = 0; i < item.amountToPool; i++) {
                 GameObject obj = (GameObject)Instantiate(item.objectToPool, item.parent);
-                obj.SetActive(false);
                 pooledObjects.Add(obj);
             }
         }

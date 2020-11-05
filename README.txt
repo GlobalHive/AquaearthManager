@@ -19,7 +19,15 @@ ToDo
 
 Version history
 ---------------
-Current Version [ 0.2.1 ]
+Current Version [ 0.3.0 ]
+- Rewritten Categories (Async)
+- Rewritten Inventory (Async)
+- Rewritten ItemEditor (Async)
+- Getting data from database instead locally saved
+- Created byte[] to texture extension
+- Using pooling for everything
+
+Version [ 0.2.1 ]
 - Added sold item display
 
 Version [ 0.2.0 ]

@@ -7,7 +7,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ItemSeller : Singleton<ItemSeller>
+/*public class ItemSeller : Singleton<ItemSeller>
 {
     [FoldoutGroup("References"), Required, SerializeField]
     Animator animator;
@@ -114,4 +114,4 @@ public class ItemSeller : Singleton<ItemSeller>
         Manager.Instance.Tabs.ShowPanels();
         Manager.Instance.ReloadInventory(-1);
     }
-}
+}*/

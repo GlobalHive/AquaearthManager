@@ -1,10 +1,10 @@
 ﻿using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Data.Common;
 using System.Threading.Tasks;
+using System.Windows.Forms.VisualStyles;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,13 +18,6 @@ public class Manager : Singleton<Manager>
     public GameObject LoadingScreen;
     [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
-
-
-    // Category
-    [TabGroup("Category"), SerializeField, SceneObjectsOnly]
-    GameObject _CategoryTemplate;
-    [TabGroup("Category"), SerializeField, SceneObjectsOnly]
-    Transform _CategoryArray;
 
     // Item
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
@@ -43,8 +36,6 @@ public class Manager : Singleton<Manager>
     Transform _SalesArray;
 
     int _OpenCategory = 0;
-    Dictionary<int, Category> _Categorys = new Dictionary<int, Category>();
-    Dictionary<int, Item> _CategoryItems = new Dictionary<int, Item>();
 
     List<Item> selectedItems = new List<Item>();
     int maxPage = 0;
@@ -70,11 +61,11 @@ public class Manager : Singleton<Manager>
         // Datenbank verbindungen starten
         GlobalHive.DatabaseAPI.API.GetInstance();
 
-         // Startet das laden der Kategorien
-        StartCoroutine(LoadCategories());
+        // Startet das laden der Kategorien
+        LoadCategories();
         
         // Setzt die klick funktion fest für den verkauf knopf (Gibt die liste mit)
-        _SellButton.onClick.AddListener(() => ItemSeller.Instance.OpenItemSeller(selectedItems));
+        //_SellButton.onClick.AddListener(() => ItemSeller.Instance.OpenItemSeller(selectedItems));
     }
 
     private void Update() {
@@ -93,155 +84,217 @@ public class Manager : Singleton<Manager>
         }
     }
 
-    public Category GetCategory(int id) {
-        return _Categorys[id];
-    }
-
-    public int GetCategoryCount {
-        get { return _Categorys.Count; }
-    }
-
     #region Category
-    public void ReloadCategorys() {
-        StartCoroutine(LoadCategories());
+    public async void LoadCategories() {
+        LoadingScreen.SetActive(true); // Ladebild sichtbar machen
+        
+        List<Category> tempCategories = await Task.Run(() => GetCategoriesAsync()); // Startet das asynchrone laden der kategorien
+
+        ObjectPooler.Instance.HidePooledObjects("CategoryElement"); // Macht alle pooling objekte unsichbar
+
+        foreach (Category category in tempCategories) {
+            GameObject tempObject = ObjectPooler.Instance.GetPooledObject("CategoryElement"); // Nimmt ein element aus dem "pool"
+            RawImage tempRawImage = tempObject.transform.Find("Background/Image").GetComponent<RawImage>(); // Sucht das bild im template
+            TMP_Text tempTitle = tempObject.transform.Find("Background/TextArea/Title").GetComponent<TMP_Text>(); // Sucht den titel im template
+            Button tempButton = tempObject.GetComponent<Button>(); // Sucht den "button" im template
+
+            Texture2D tempImage = category.Image.ToTexture(); // Konvertiert die Bytes[] zu eines textur
+
+            tempTitle.SetText(category.Name); // Setzt den name als titel
+            if (tempImage != null)
+                tempRawImage.texture = tempImage; // Setzt die textur als bild, falls vorhanden
+
+            tempButton.onClick.AddListener(() => CategoryButtonClick(category.ID)); // Setzt die funktion beim clicken des elements
+            tempObject.SetActive(true); // Macht das template sichtbar
+
+        }
+
+        LoadingScreen.SetActive(false); // Ladebild unsichbar machen
     }
 
-    IEnumerator LoadCategories() {
-        ClearCategories();
+    public void CategoryButtonClick(int categoryID) {
+        _OpenCategory = categoryID; // Setzt die aktuell geöffnete kategorie fest
+        LoadInventory(categoryID);
+    }
 
-        // Datenbank setup
-        MySqlConnection _conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand _cmd = new MySqlCommand("SELECT * FROM categorys ORDER BY name ASC", _conn);
+    public async Task<List<Category>> GetCategoriesAsync() {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync(); // Erstellt eine verbindung mit der Datenbank
+        MySqlCommand cmd = new MySqlCommand("SELECT * FROM categorys", conn); // Datenbank befehl
 
-        LoadingScreen.SetActive(true);
+        List<Category> tempCategories = new List<Category>();
 
-         // Geht alle resultate durch
-        using (MySqlDataReader reader = _cmd.ExecuteReader()) {
-            while (reader.Read()) {
+        using (DbDataReader reader = await cmd.ExecuteReaderAsync()) { // Liest alle daten aus der Datenbank ( Wie definiert im befehl)
+            while (await reader.ReadAsync()) { // während der "reader" noch daten hat, loopen
 
-                // Erstellt und konvertiert das bild aus der datenbank
-                Texture2D image = null;
-                if (!string.IsNullOrEmpty(reader["img"].ToString())) {
-                    byte[] imageBytes = (byte[])reader["img"];
-                    if (imageBytes.Length != 0) {
-                        image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-                        image.LoadImage(imageBytes);
-                        image.Apply();
-                    }
+                
+                Category tempCat = new Category { // Erstellt eine Kategorie
+                    ID = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Image = null
+                };
+
+                if (!reader.IsDBNull(2)) {
+                    byte[] imageBytes = reader.GetFieldValue<byte[]>(2);
+
+                    if (imageBytes.Length != 0)
+                        tempCat.Image = imageBytes;
                 }
-
-                // Erstellt eine kategorie inklusive angezeigtes element
-                Category _Cat = new Category(_CategoryTemplate, _CategoryArray, reader.GetString("name"), reader.GetInt32("id"), image);
-
-                // Fügt den eintrag in die liste ein
-                _Categorys.Add(reader.GetInt32("id"), _Cat);
-
-                _Cat.GetCategroyObject().SetActive(true);
-                yield return null;
+                    
+                tempCategories.Add(tempCat);
             }
         }
-        // Schliesst und beendet die datenbank verbindung
-        _cmd.Dispose();
-        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(_conn);
-        LoadingScreen.SetActive(false);
-    }
-    public void ClearCategories() {
-        // Löscht alle kategorie objekte ausser das template
-        foreach (Category item in _Categorys.Values) {
-            Destroy(item.GetCategroyObject());
-        }
-        _Categorys.Clear();
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return tempCategories;
     }
 
+    public async Task<Category> GetCategoryAsync(int id) {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand($"SELECT * FROM categorys WHERE id = '{id}'", conn);
+        DbDataReader reader = await cmd.ExecuteReaderAsync();
+        await reader.ReadAsync();
+        Category tempCategory = new Category {
+            ID = reader.GetInt32(0),
+            Image = null,
+            Name = reader.GetString(1)
+        };
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return tempCategory;
+    }
     #endregion
 
     #region Inventory
-    public void ReloadInventory(int category) {
-        if(category == -1)
-            StartCoroutine(LoadItems(_OpenCategory));
-        else
-            StartCoroutine(LoadItems(category));
-    }
-    IEnumerator LoadItems(int category) {
-        _OpenCategory = category;
-
-        ClearInventory();
+    public async void LoadInventory(int category) {
+        LoadingScreen.SetActive(true);
+        if (category == -1)
+            category = _OpenCategory;
 
         MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
         MySqlCommand cmd;
-
-        LoadingScreen.SetActive(true);
-
-        if(category != 0)
-            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items WHERE category = '{category}'", conn);
-        else
-            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items",conn);
-        using (MySqlDataReader reader = cmd.ExecuteReader()) {
-            reader.Read();
-            MaxPage = reader.GetInt32("COUNT(*)") / 100;
-        }
-        cmd.Dispose();
-
+        List<Item> tempItems = new List<Item>();
 
         if (category != 0)
-            cmd = new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage+1 * 100}", conn);
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items WHERE category = '{category}'", conn);
         else
-            cmd = new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}", conn);
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items", conn);
 
-        using (MySqlDataReader reader = cmd.ExecuteReader()) {
-            while (reader.Read()) {
-
-                Texture2D image = null;
-                if (!string.IsNullOrEmpty(reader["img"].ToString())) {
-                    byte[] imageBytes = (byte[])reader["img"];
-                    if (imageBytes != null || imageBytes.Length != 0) {
-                        image = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-                        image.LoadImage(imageBytes);
-                        image.Apply();
-                    }
-                }
-                
-                Item item = new Item(_ItemTemplate, _ItemArray, reader.GetInt32("id"),reader.GetString("name"),reader.GetInt32("amount"), 
-                    reader.GetDouble("price"), reader.GetInt32("category"), image);
-
-                _CategoryItems.Add(reader.GetInt32("id"), item);
-
-                item.GetItemObject().SetActive(true);
-                item.GetItemObject().GetComponent<SelectableObject>().SetReturnObject(item);
-                item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.AddListener((obj, selected) => {
-                    if (selected) {
-                        if(item.Amount > 0)
-                            selectedItems.Add((Item)obj);
-                    }
-                    else {
-                        selectedItems.Remove((Item)obj);
-                    }
-
-                    _SellButton.interactable = selectedItems.Count > 0;
-                });
-
-                selectedItems.ForEach(delegate (Item _item) {
-                    if(_item.Name == item.Name)
-                        item.GetItemObject().GetComponent<SelectableObject>().SetSelected(true, true);
-                });
-
-                _SellButton.interactable = selectedItems.Count > 0;
-
-                yield return null;
-            }
-        }
-
+        object result = await cmd.ExecuteScalarAsync();
+        MaxPage = int.Parse(result.ToString()) / 100;
         cmd.Dispose();
         GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+
+        if (category != 0)
+            tempItems = await Task.Run(()=> GetItemsAsync(new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}")));
+        else
+            tempItems = await Task.Run(()=> GetItemsAsync(new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}")));
+
+        ObjectPooler.Instance.HidePooledObjects("InventoryElement");
+
+        foreach (Item tempItem in tempItems) {
+            GameObject tempObject = ObjectPooler.Instance.GetPooledObject("InventoryElement");
+            RawImage tempRawImage = tempObject.transform.Find("Image").GetComponent<RawImage>();
+            TMP_Text tempTitle = tempObject.transform.Find("Name").GetComponent<TMP_Text>();
+            TMP_Text tempDescription = tempObject.transform.Find("Description").GetComponent<TMP_Text>();
+            Button tempButton = tempObject.transform.Find("btnEdit").GetComponent<Button>();
+            SelectableObject tempSelectableObject = tempObject.GetComponent<SelectableObject>();
+
+            Texture2D tempImage = tempItem.Image.ToTexture();
+
+            if (tempImage != null)
+                tempRawImage.texture = tempImage;
+
+            tempTitle.SetText(tempItem.Name);
+            tempDescription.SetText($"{tempItem.Category.Name} - {tempItem.Amount}x - CHF {tempItem.Price.ToString("N2")}");
+            tempButton.onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(tempItem.ID));
+
+            tempSelectableObject.SetReturnObject(tempItem);
+            tempSelectableObject.OnSelectionChanged.AddListener((o, s) => OnSelectionChanged(tempItem, s));
+
+            selectedItems.ForEach(delegate (Item _item) {
+                if (_item.Name == tempItem.Name)
+                    tempSelectableObject.SetSelected(true, true);
+            });
+
+            tempObject.SetActive(true);
+        }
+        
+        _SellButton.interactable = selectedItems.Count > 0;
+        Tabs.PanelAnim(1);
         LoadingScreen.SetActive(false);
     }
-    private void ClearInventory() {
-        foreach (Item item in _CategoryItems.Values) {
-            item.GetItemObject().GetComponent<SelectableObject>().OnSelectionChanged.RemoveAllListeners();
-            Destroy(item.GetItemObject());
+
+    public async Task<List<Item>> GetItemsAsync(MySqlCommand cmd) {
+        List<Item> tempItemList = new List<Item>();
+
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        cmd.Connection = conn;
+        using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
+            while (await reader.ReadAsync()) {
+                Item tempItem = new Item {
+                    ID = reader.GetInt32(0),
+                    Image = null,
+                    Name = reader.GetString(1),
+                    Amount = reader.GetInt32(3),
+                    Price = reader.GetDouble(4)
+                };
+
+                if (!reader.IsDBNull(2)) {
+                    tempItem.Image = reader.GetFieldValue<byte[]>(2);
+                }
+
+                tempItem.Category = await GetCategoryAsync(reader.GetInt32(5));
+                tempItemList.Add(tempItem);
+            }
         }
-        _CategoryItems.Clear();
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return tempItemList;
     }
+
+    public async Task<Item> GetItemAsync(int itemID) {
+        Item tempItem = null;
+
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand($"SELECT * FROM items WHERE id = '{itemID}'", conn);
+        using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
+            while (await reader.ReadAsync()) {
+                tempItem = new Item {
+                    ID = reader.GetInt32(0),
+                    Image = null,
+                    Name = reader.GetString(1),
+                    Amount = reader.GetInt32(3),
+                    Price = reader.GetDouble(4)
+                };
+
+                if (!reader.IsDBNull(2)) {
+                    tempItem.Image = reader.GetFieldValue<byte[]>(2);
+                }
+
+                tempItem.Category = await GetCategoryAsync(reader.GetInt32(5));
+            }
+        }
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return tempItem;
+    }
+
+    public void OnItemEditButtonClick(int itemID) { 
+        
+    }
+
+    public void OnSelectionChanged(object obj, bool isSelected) {
+        Item item = (Item)obj;
+        if (isSelected) {
+            if (item.Amount > 0)
+                selectedItems.Add(item);
+        }
+        else {
+            selectedItems.Remove(item);
+        }
+
+        _SellButton.interactable = selectedItems.Count > 0;
+    }
+
     public void SetPagination(bool increase) {
         if (increase) {
             if (currentPage == maxPage)
@@ -256,7 +309,7 @@ public class Manager : Singleton<Manager>
                 currentPage--;
         }
 
-        ReloadInventory(-1);
+        LoadInventory(-1);
     }
     #endregion
 
@@ -347,167 +400,4 @@ public class Manager : Singleton<Manager>
         // Reset min window grösse, sonst error
         GlobalHive.Windows.MinimumWindowSize.Reset();
     }
-}
-
-public class Category {
-    private GameObject _CategoryObject;
-    private TMP_Text _Title;
-    private RawImage _Image;
-
-    private int _CategoryID;
-    private string _CategoryName;
-    private Texture _CategoryImage;
-
-    public Texture CategoryImage {
-        get { return _CategoryImage; }
-        set {
-            CheckReferences();
-            _CategoryImage = value;
-            _Image.texture = _CategoryImage;
-        }
-    }
-    public string CategoryName {
-        get { return _CategoryName; }
-        set {
-            _CategoryName = value;
-            CheckReferences();
-            _Title.SetText(_CategoryName);
-        }
-    }
-    public int CategoryID {
-        get { return _CategoryID; }
-        set { _CategoryID = value; }
-    }
-
-    public Category(GameObject categoryObject, Transform parent, string name, int categoryID, Texture2D image) {
-
-        _CategoryObject = GameObject.Instantiate(categoryObject, parent);
-
-        CheckReferences();
-
-        _CategoryID = categoryID;
-        CategoryName = name;
-        if(image != null)
-            _CategoryImage = image;
-
-        _Title.SetText(CategoryName);
-        if (_CategoryImage == null)
-            _CategoryImage = _Image.texture;
-        _Image.texture = _CategoryImage;
-
-        _CategoryObject.GetComponent<Button>().onClick.AddListener(() => Manager.Instance.Tabs.PanelAnim(1));
-        _CategoryObject.GetComponent<Button>().onClick.AddListener(() => Manager.Instance.ReloadInventory(_CategoryID));
-        
-    }
-
-    public GameObject GetCategroyObject() {
-        return _CategoryObject;
-    }
-
-    private void CheckReferences() {
-        if (_Title == null)
-            _Title = _CategoryObject.transform.Find("Background/TextArea/Title").GetComponent<TMP_Text>();
-
-        if(_Image == null)
-            _Image = _CategoryObject.transform.Find("Background/Image").GetComponent<RawImage>();
-
-    }
-}
-
-public class Item
-{
-    private GameObject _ItemObject;
-    private RawImage _ItemImage;
-    private TMP_Text _Title, _Description;
-
-    private int _ID, _Amount;
-    private string _Name;
-    private double _Price;
-    private Texture _Image;
-    private Category _Category;
-
-    public Texture ItemImage {
-        get { return _Image; }
-        set {
-            CheckReferences();
-            _Image = value;
-            _ItemImage.texture = _Image;
-        }
-    }
-    public int ID {
-        get { return _ID; }
-    }
-    public string Name {
-        get { return _Name; }
-        set { _Name = value; }
-    }
-    public int Amount { 
-        get { return _Amount; } 
-        set { _Amount = value;}
-    }
-    public double Price {
-        get { return _Price; }
-        set { _Price = value; }
-    }
-    public int CategoryID {
-        get { return _Category.CategoryID; }
-        set {
-            _Category = Manager.Instance.GetCategory(value);
-        }
-    }
-
-    private void CheckReferences() {
-        if (_ItemImage == null)
-            _ItemImage = _ItemObject.transform.Find("Image").GetComponent<RawImage>();
-
-        if (_Title == null)
-            _Title = _ItemObject.transform.Find("Name").GetComponent<TMP_Text>();
-
-        if (_Description == null)
-            _Description = _ItemObject.transform.Find("Description").GetComponent<TMP_Text>();
-    }
-
-    public GameObject GetItemObject() {
-        return _ItemObject;
-    }
-
-    public Item(GameObject itemObject, Transform itemParent, int id, string name, int amount, double price, int category, Texture2D image) {
-        _ItemObject = GameObject.Instantiate(itemObject, itemParent);
-        CheckReferences();
-
-        _ID = id;
-        _Name = name;
-        _Amount = amount;
-        _Price = price;
-        _Category = Manager.Instance.GetCategory(category);
-        _Image = image;
-
-        _Title.SetText(_Name);
-        _Description.SetText($"{_Category.CategoryName} - {_Amount}x - CHF {_Price.ToString("N2")}");
-        if(image != null)
-            _ItemImage.texture = _Image;
-
-        _ItemObject.transform.Find("btnEdit").GetComponent<Button>().onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(this,ItemEditor.EditMode.Edit));
-    }
-}
-
-public class Sales {
-    public int SaleID;
-    public List<SoldItems> SoldItemsList = new List<SoldItems>();
-    public DateTime SoldDateTime;
-    public double FullPrice;
-
-    public class SoldItems {
-        public int ItemID;
-        public int Amount;
-    }
-
-}
-
-public class DatabaseSales {
-    public int ID;
-    public int SalesID;
-    public int ItemID;
-    public int Amount;
-    public DateTime DateTime;
 }

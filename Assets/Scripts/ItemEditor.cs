@@ -1,6 +1,7 @@
 ﻿using GlobalHive.UI.ModernUI;
 using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -25,22 +26,21 @@ public class ItemEditor : Singleton<ItemEditor>
     [FoldoutGroup("Input Fields"), SerializeField, SceneObjectsOnly]
     CustomDropdown _DropDown;
 
-    EditMode currentMode;
-    Item editItem = null;
+    int editItemID = 0;
 
-    public void OpenItemEditor(Item item, EditMode editMode) {
-        Manager.Instance.Tabs.HidePanels();
-        currentMode = editMode;
-        editItem = item;
+    public async void OpenItemEditor(int itemID) {
+        Item editItem = null;
+        editItemID = itemID;
+
+        Manager.Instance.LoadingScreen.SetActive(true);
 
         _DropDown.dropdownItems.Clear();
-        for (int i = 0; i < Manager.Instance.GetCategoryCount; i++) {
 
-            Category curCat = Manager.Instance.GetCategory(i + 1);
-
+        List<Category> tempCategories = await Task.Run(() => Manager.Instance.GetCategoriesAsync());
+        foreach (Category category in tempCategories) {
             CustomDropdown.Item di = new CustomDropdown.Item {
                 itemIcon = IconManager.Instance.GetIcon(IconType.Arrow),
-                itemName = curCat.CategoryName
+                itemName = category.Name
             };
             di.OnItemSelection = new UnityEngine.Events.UnityEvent();
             di.OnItemSelection.AddListener(delegate { OnValueChanged(); });
@@ -48,61 +48,62 @@ public class ItemEditor : Singleton<ItemEditor>
             _DropDown.dropdownItems.Add(di);
         }
         _DropDown.UpdateDropdown();
-        if (editItem != null) {
-            _DropDown.ChangeDropdownInfoSilent(item.CategoryID - 1);
-        }
-        else {
+
+        if (itemID == 0) {
+            _TitleText.SetText("Erstellen");
             _DropDown.ChangeDropdownInfoSilent(0);
         }
+        else {
+            _TitleText.SetText("Bearbeiten");
 
-        switch (editMode) {
-            case EditMode.Edit:
-                _TitleText.SetText("Bearbeiten");
-                _Name.SetTextWithoutNotify(editItem.Name);
-                _Amount.SetTextWithoutNotify(editItem.Amount.ToString());
-                _Price.SetTextWithoutNotify(editItem.Price.ToString("N2"));
-                if(editItem.ItemImage != null)
-                    _Image.texture = editItem.ItemImage;
-                break;
-            case EditMode.Create:
-                _TitleText.SetText("Erstellen");
-                editItem = null;
-                break;
-            default:
-                break;
+            editItem = await Task.Run(() => Manager.Instance.GetItemAsync(itemID));
+
+            _DropDown.ChangeDropdownInfoSilent(editItem.Category.Name);
+            _Name.SetTextWithoutNotify(editItem.Name);
+            _Amount.SetTextWithoutNotify(editItem.Amount.ToString());
+            _Price.SetTextWithoutNotify(editItem.Price.ToString("N2"));
+
+            Texture2D tempTexture = editItem.Image.ToTexture();
+            if (tempTexture != null)
+                _Image.texture = tempTexture;
         }
 
+        Manager.Instance.Tabs.HidePanels();
         _ItemEditor.GetComponent<Animator>().Play("Panel Open");
+        Manager.Instance.LoadingScreen.SetActive(false);
     }
 
     public void CreateItem() {
-        OpenItemEditor(null, EditMode.Create);
+        OpenItemEditor(0);
     }
 
     public async void SaveEdit() {
+        Item editItem = null;
 
-        if (editItem != null) {
-            editItem.Name = _Name.text;
-            editItem.Amount = int.Parse(_Amount.text);
-            editItem.Price = double.Parse(_Price.text);
-            editItem.CategoryID = _DropDown.selectedItemIndex+1;
-            editItem.ItemImage = _Image.texture;
-        }
+        if (editItemID == 0)
+            editItem = new Item();
+        else
+            editItem = await Task.Run(() => Manager.Instance.GetItemAsync(editItemID));
+
+        editItem.Name = _Name.text;
+        editItem.Amount = int.Parse(_Amount.text);
+        editItem.Price = double.Parse(_Price.text);
+        editItem.Category = await Task.Run(() => Manager.Instance.GetCategoryAsync(_DropDown.selectedItemIndex + 1));
+
+        Texture2D image = _Image.texture as Texture2D;
+        editItem.Image = image.EncodeToPNG();
+
         Manager.Instance.LoadingScreen.SetActive(true);
-        await SaveItem(editItem, currentMode);
-        Manager.Instance.LoadingScreen.SetActive(false);
+        await Task.Run(()=> SaveItem(editItem));
         CancelEdit();
-        Manager.Instance.ReloadInventory(-1);
+        Manager.Instance.LoadInventory(-1);
     }
 
-    async Task SaveItem(Item item, EditMode mode) {
-        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand cmd = new MySqlCommand();
+    async Task SaveItem(Item item) {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = null;
         string updateString = "UPDATE items SET name=@NAME,img=@IMG,amount=@AMOUNT,price=@PRICE,category=@CATEGORY WHERE id = @ID";
         string insertString = "INSERT INTO items (name, img, amount, price, category) VALUES (@NAME, @IMG, @AMOUNT, @PRICE, @CATEGORY)";
-
-        Texture2D image;
-        byte[] imageBytes;
 
         if (string.IsNullOrEmpty(_Name.text))
             _Name.SetTextWithoutNotify("ERROR #001 - NNF");
@@ -111,48 +112,39 @@ public class ItemEditor : Singleton<ItemEditor>
         if (string.IsNullOrEmpty(_Price.text))
             _Price.SetTextWithoutNotify("0.00");
 
-        switch (mode) {
-            case EditMode.Create:
-                image = _Image.texture as Texture2D;
-                imageBytes = image.EncodeToPNG();
-                cmd = new MySqlCommand(insertString, conn);
-                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
-                cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
-                cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
-                cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
-                cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
+        if (editItemID == 0) {
+            cmd = new MySqlCommand(insertString, conn);
+            cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
+            cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
+            cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
+            cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
+            cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
 
-                cmd.Parameters["@NAME"].Value = _Name.text;
-                cmd.Parameters["@IMG"].Value = imageBytes;
-                cmd.Parameters["@AMOUNT"].Value = _Amount.text;
-                cmd.Parameters["@PRICE"].Value = _Price.text;
-                cmd.Parameters["@CATEGORY"].Value = _DropDown.selectedItemIndex+1;
-                break;
-            case EditMode.Edit:
-                image = item.ItemImage as Texture2D;
-                imageBytes = image.EncodeToPNG();
-                cmd = new MySqlCommand(updateString, conn);
-                cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
-                cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
-                cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
-                cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
-                cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
-                cmd.Parameters.Add("@ID", MySqlDbType.Int32);
+            cmd.Parameters["@NAME"].Value = item.Name;
+            cmd.Parameters["@IMG"].Value = item.Image;
+            cmd.Parameters["@AMOUNT"].Value = item.Amount;
+            cmd.Parameters["@PRICE"].Value = item.Price;
+            cmd.Parameters["@CATEGORY"].Value = item.Category.ID;
+        } else {
+            cmd = new MySqlCommand(updateString, conn);
+            cmd.Parameters.Add("@NAME", MySqlDbType.VarChar, 255);
+            cmd.Parameters.Add("@IMG", MySqlDbType.MediumBlob);
+            cmd.Parameters.Add("@AMOUNT", MySqlDbType.Int32);
+            cmd.Parameters.Add("@PRICE", MySqlDbType.Double);
+            cmd.Parameters.Add("@CATEGORY", MySqlDbType.Int32);
+            cmd.Parameters.Add("@ID", MySqlDbType.Int32);
 
-                cmd.Parameters["@NAME"].Value = item.Name;
-                cmd.Parameters["@IMG"].Value = imageBytes;
-                cmd.Parameters["@AMOUNT"].Value = item.Amount;
-                cmd.Parameters["@PRICE"].Value = item.Price;
-                cmd.Parameters["@CATEGORY"].Value = item.CategoryID;
-                cmd.Parameters["@ID"].Value = item.ID;
-                break;
+            cmd.Parameters["@NAME"].Value = item.Name;
+            cmd.Parameters["@IMG"].Value = item.Image;
+            cmd.Parameters["@AMOUNT"].Value = item.Amount;
+            cmd.Parameters["@PRICE"].Value = item.Price;
+            cmd.Parameters["@CATEGORY"].Value = item.Category.ID;
+            cmd.Parameters["@ID"].Value = item.ID;
         }
-        if (cmd != null) {
-            await cmd.ExecuteNonQueryAsync();
-            cmd.Dispose();
-            GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
-        }
-            
+
+        await cmd.ExecuteNonQueryAsync();
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
     }
 
     public void CancelEdit() {
@@ -190,10 +182,5 @@ public class ItemEditor : Singleton<ItemEditor>
     public void OnValueChanged() {
         if(!_SaveButton.interactable)
             _SaveButton.interactable = true;
-    }
-
-    public enum EditMode { 
-        Create,
-        Edit
     }
 }

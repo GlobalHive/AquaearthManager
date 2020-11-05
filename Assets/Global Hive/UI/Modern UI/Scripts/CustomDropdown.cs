@@ -155,6 +155,15 @@ namespace GlobalHive.UI.ModernUI
             selectedText.text = dropdownItems[itemIndex].itemName;
             selectedItemIndex = itemIndex;
         }
+        public void ChangeDropdownInfoSilent(string name) {
+            for (int i = 0; i < dropdownItems.Count; i++) {
+                if (dropdownItems[i].itemName == name) {
+                    selectedImage.sprite = dropdownItems[i].itemIcon;
+                    selectedText.text = dropdownItems[i].itemName;
+                    selectedItemIndex = i;
+                }
+            }
+        }
 
         public void Animate()
         {
