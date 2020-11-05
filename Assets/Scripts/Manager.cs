@@ -106,6 +106,7 @@ public class Manager : Singleton<Manager>
             if (tempImage != null)
                 tempRawImage.texture = tempImage; // Setzt die textur als bild, falls vorhanden
 
+            tempButton.onClick.RemoveAllListeners();
             tempButton.onClick.AddListener(() => CategoryButtonClick(category.ID)); // Setzt die funktion beim clicken des elements
             tempObject.SetActive(true); // Macht das template sichtbar
 
@@ -222,9 +223,11 @@ public class Manager : Singleton<Manager>
 
             tempTitle.SetText(tempItem.Name);
             tempDescription.SetText($"{tempItem.Category.Name} – {tempItem.Amount}x – CHF {tempItem.Price.ToString("N2")}");
+            tempButton.onClick.RemoveAllListeners();
             tempButton.onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(tempItem.ID));
 
             tempSelectableObject.SetReturnObject(tempItem);
+            tempSelectableObject.OnSelectionChanged.RemoveAllListeners();
             tempSelectableObject.OnSelectionChanged.AddListener((o, s) => OnSelectionChanged(tempItem, s));
 
             selectedItems.ForEach(delegate (Item _item) {
@@ -373,6 +376,7 @@ public class Manager : Singleton<Manager>
             item.FullPrice = currentPrice;
 
             go.transform.Find("Content/Price").GetComponent<TMP_Text>().SetText($"CHF {currentPrice.ToString("N2")}");
+            go.GetComponent<Button>().onClick.RemoveAllListeners();
             go.GetComponent<Button>().onClick.AddListener(delegate () {
                 SoldItem.Instance.ShowSoldItem(item.SaleID);
             });

@@ -20,6 +20,7 @@ ToDo
 Version history
 ---------------
 Current Version [ 0.3.0 ]
+- Fixed multiple listener assignements
 - Added sold item list
 - Rewritten Sales (Async)
 - Added better loading screen

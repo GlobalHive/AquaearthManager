@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using Sirenix.OdinInspector;
 using TMPro;
 using System.Threading.Tasks;
@@ -19,7 +17,9 @@ public class SoldItem : Singleton<SoldItem>
         var soldItemProgress = new Progress<string>();
         soldItemProgress.ProgressChanged += SoldItemProgress_ProgressChanged;
 
-        Sales tempSoldItem = await Task.Run(() => Manager.Instance.GetSoldItemAsync(saleID));
+        ObjectPooler.Instance.HidePooledObjects("SoldItemElement");
+        Sales tempSoldItem = null;
+        tempSoldItem = await Task.Run(() => Manager.Instance.GetSoldItemAsync(saleID));
 
         id.SetText($"ID: {tempSoldItem.SaleID}");
         amount.SetText($"Menge: {tempSoldItem.SoldItemsList.Count} Artikel");
@@ -27,10 +27,9 @@ public class SoldItem : Singleton<SoldItem>
         date.SetText($"Datum: {_date}");
         price.SetText($"CHF {tempSoldItem.FullPrice.ToString("N2")}");
 
-        ObjectPooler.Instance.HidePooledObjects("SoldItemElement");
         foreach (Sales.SoldItems sitem in tempSoldItem.SoldItemsList) {
             Item tempItem = await Task.Run(() => Manager.Instance.GetItemAsync(sitem.ItemID, soldItemProgress));
-
+            
             GameObject tempObject = ObjectPooler.Instance.GetPooledObject("SoldItemElement");
             RawImage tempRawImage = tempObject.transform.Find("Image").GetComponent<RawImage>();
             TMP_Text tempTitle = tempObject.transform.Find("Name").GetComponent<TMP_Text>();
