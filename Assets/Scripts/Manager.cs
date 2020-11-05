@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -14,8 +15,6 @@ public class Manager : Singleton<Manager>
     // Main Canvas
     [FoldoutGroup("Main Canvas References"), SerializeField, SceneObjectsOnly, InlineEditor(InlineEditorModes.GUIOnly)]
     CanvasScaler _CanvasScaler;
-    [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
-    public GameObject LoadingScreen;
     [FoldoutGroup("Main Canvas References"), SceneObjectsOnly]
     public GlobalHive.UI.ModernUI.ModalWindowTabs Tabs;
 
@@ -42,10 +41,10 @@ public class Manager : Singleton<Manager>
     int currentPage = 0;
 
     public int MaxPage {
-        get { return maxPage; }
+        get { return maxPage/100; }
         set {
             maxPage = value;
-            if (currentPage > maxPage)
+            if (currentPage > MaxPage)
                 currentPage = 0;
 
             _PaginationText.SetText($"{currentPage+1} / {MaxPage+1}");
@@ -86,9 +85,12 @@ public class Manager : Singleton<Manager>
 
     #region Category
     public async void LoadCategories() {
-        LoadingScreen.SetActive(true); // Ladebild sichtbar machen
-        
-        List<Category> tempCategories = await Task.Run(() => GetCategoriesAsync()); // Startet das asynchrone laden der kategorien
+        LoadingScreen.Instance.ShowLoadingScreen("Lade Kategorie"); // Ladebild sichtbar machen
+
+        var categoryProgress = new Progress<string>();
+        categoryProgress.ProgressChanged += CategoryProgress_ProgressChanged;
+
+        List<Category> tempCategories = await Task.Run(() => GetCategoriesAsync(categoryProgress)); // Startet das asynchrone laden der kategorien
 
         ObjectPooler.Instance.HidePooledObjects("CategoryElement"); // Macht alle pooling objekte unsichbar
 
@@ -109,7 +111,13 @@ public class Manager : Singleton<Manager>
 
         }
 
-        LoadingScreen.SetActive(false); // Ladebild unsichbar machen
+        categoryProgress.ProgressChanged -= CategoryProgress_ProgressChanged;
+        categoryProgress = null;
+        LoadingScreen.Instance.HideLoadingScreen(); // Ladebild unsichbar machen
+    }
+
+    private void CategoryProgress_ProgressChanged(object sender, string e) {
+        LoadingScreen.Instance.SetText($"Lade Kategorie\n{e}");
     }
 
     public void CategoryButtonClick(int categoryID) {
@@ -117,7 +125,7 @@ public class Manager : Singleton<Manager>
         LoadInventory(categoryID);
     }
 
-    public async Task<List<Category>> GetCategoriesAsync() {
+    public async Task<List<Category>> GetCategoriesAsync(IProgress<string> progress=null) {
         MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync(); // Erstellt eine verbindung mit der Datenbank
         MySqlCommand cmd = new MySqlCommand("SELECT * FROM categorys", conn); // Datenbank befehl
 
@@ -141,6 +149,9 @@ public class Manager : Singleton<Manager>
                 }
                     
                 tempCategories.Add(tempCat);
+                if (progress != null) {
+                    progress.Report(tempCat.Name);
+                }
             }
         }
         cmd.Dispose();
@@ -148,9 +159,10 @@ public class Manager : Singleton<Manager>
         return tempCategories;
     }
 
-    public async Task<Category> GetCategoryAsync(int id) {
+    public async Task<Category> GetCategoryAsync(int id, IProgress<string> progress = null) {
         MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
         MySqlCommand cmd = new MySqlCommand($"SELECT * FROM categorys WHERE id = '{id}'", conn);
+
         DbDataReader reader = await cmd.ExecuteReaderAsync();
         await reader.ReadAsync();
         Category tempCategory = new Category {
@@ -158,6 +170,8 @@ public class Manager : Singleton<Manager>
             Image = null,
             Name = reader.GetString(1)
         };
+        if (progress != null)
+            progress.Report(tempCategory.Name);
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
         return tempCategory;
     }
@@ -165,7 +179,7 @@ public class Manager : Singleton<Manager>
 
     #region Inventory
     public async void LoadInventory(int category) {
-        LoadingScreen.SetActive(true);
+        LoadingScreen.Instance.ShowLoadingScreen("Lade Artikel");
         if (category == -1)
             category = _OpenCategory;
 
@@ -179,14 +193,17 @@ public class Manager : Singleton<Manager>
             cmd = new MySqlCommand($"SELECT COUNT(*) FROM items", conn);
 
         object result = await cmd.ExecuteScalarAsync();
-        MaxPage = int.Parse(result.ToString()) / 100;
+        MaxPage = int.Parse(result.ToString());
         cmd.Dispose();
         GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
 
+        var itemProgress = new Progress<string>();
+        itemProgress.ProgressChanged += ItemProgress_ProgressChanged;
+
         if (category != 0)
-            tempItems = await Task.Run(()=> GetItemsAsync(new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}")));
+            tempItems = await Task.Run(() => GetItemsAsync(new MySqlCommand($"SELECT * FROM items WHERE category = '{category}' ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}"), itemProgress));
         else
-            tempItems = await Task.Run(()=> GetItemsAsync(new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}")));
+            tempItems = await Task.Run(()=> GetItemsAsync(new MySqlCommand($"SELECT * FROM items ORDER BY name ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}"), itemProgress));
 
         ObjectPooler.Instance.HidePooledObjects("InventoryElement");
 
@@ -204,7 +221,7 @@ public class Manager : Singleton<Manager>
                 tempRawImage.texture = tempImage;
 
             tempTitle.SetText(tempItem.Name);
-            tempDescription.SetText($"{tempItem.Category.Name} - {tempItem.Amount}x - CHF {tempItem.Price.ToString("N2")}");
+            tempDescription.SetText($"{tempItem.Category.Name} – {tempItem.Amount}x – CHF {tempItem.Price.ToString("N2")}");
             tempButton.onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(tempItem.ID));
 
             tempSelectableObject.SetReturnObject(tempItem);
@@ -217,13 +234,20 @@ public class Manager : Singleton<Manager>
 
             tempObject.SetActive(true);
         }
-        
+
+        itemProgress.ProgressChanged -= ItemProgress_ProgressChanged;
+        itemProgress = null;
+
         _SellButton.interactable = selectedItems.Count > 0;
         Tabs.PanelAnim(1);
-        LoadingScreen.SetActive(false);
+        LoadingScreen.Instance.HideLoadingScreen();
     }
 
-    public async Task<List<Item>> GetItemsAsync(MySqlCommand cmd) {
+    private void ItemProgress_ProgressChanged(object sender, string e) {
+        LoadingScreen.Instance.SetText($"Lade Artikel\n{e}");
+    }
+
+    public async Task<List<Item>> GetItemsAsync(MySqlCommand cmd, IProgress<string> progress = null) {
         List<Item> tempItemList = new List<Item>();
 
         MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
@@ -244,6 +268,10 @@ public class Manager : Singleton<Manager>
 
                 tempItem.Category = await GetCategoryAsync(reader.GetInt32(5));
                 tempItemList.Add(tempItem);
+
+                if (progress != null) {
+                    progress.Report(tempItem.Name);
+                }
             }
         }
         cmd.Dispose();
@@ -251,13 +279,14 @@ public class Manager : Singleton<Manager>
         return tempItemList;
     }
 
-    public async Task<Item> GetItemAsync(int itemID) {
+    public async Task<Item> GetItemAsync(int itemID, IProgress<string> progress = null) {
         Item tempItem = null;
 
         MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
         MySqlCommand cmd = new MySqlCommand($"SELECT * FROM items WHERE id = '{itemID}'", conn);
         using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
             while (await reader.ReadAsync()) {
+
                 tempItem = new Item {
                     ID = reader.GetInt32(0),
                     Image = null,
@@ -265,6 +294,9 @@ public class Manager : Singleton<Manager>
                     Amount = reader.GetInt32(3),
                     Price = reader.GetDouble(4)
                 };
+
+                if (progress != null)
+                    progress.Report(tempItem.Name);
 
                 if (!reader.IsDBNull(2)) {
                     tempItem.Image = reader.GetFieldValue<byte[]>(2);
@@ -278,8 +310,12 @@ public class Manager : Singleton<Manager>
         return tempItem;
     }
 
-    public void OnItemEditButtonClick(int itemID) { 
-        
+    public async Task<double> GetItemPrice(int itemID) {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand($"SELECT price FROM items WHERE id = '{itemID}'", conn);
+        object obj = await cmd.ExecuteScalarAsync();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return (double)obj;
     }
 
     public void OnSelectionChanged(object obj, bool isSelected) {
@@ -315,30 +351,69 @@ public class Manager : Singleton<Manager>
 
     #region Sales
     public async void LoadSales() {
-        LoadingScreen.SetActive(true);
-        ClearSalesList();
-        Dictionary<int, Sales> _Sales = await GetSales();
-        StartCoroutine(CreateSalesItems(_Sales));    }
-    async Task<Dictionary<int,Sales>> GetSales() {
+
+        LoadingScreen.Instance.ShowLoadingScreen();
+
+        var salesProgress = new Progress<string>();
+        salesProgress.ProgressChanged += SalesProgress_ProgressChanged;
+        
+        Dictionary<int, Sales> _Sales = await Task.Run(()=> GetSalesAsync(salesProgress));
+
+        ObjectPooler.Instance.HidePooledObjects("SalesElement");
+        foreach (Sales item in _Sales.Values) {
+            double currentPrice = 0;
+
+            GameObject go = ObjectPooler.Instance.GetPooledObject("SalesElement");
+            go.transform.Find("Content/Title").GetComponent<TMP_Text>().SetText(item.SoldDateTime.ToString("dd/MM/yyyy HH:mm"));
+            go.transform.Find("Content/Artikel").GetComponent<TMP_Text>().SetText($"{item.SoldItemsList.Count} Artikel");
+
+            foreach (Sales.SoldItems si in item.SoldItemsList) {
+                currentPrice += await GetItemPrice(si.ItemID) * si.Amount;
+            }
+            item.FullPrice = currentPrice;
+
+            go.transform.Find("Content/Price").GetComponent<TMP_Text>().SetText($"CHF {currentPrice.ToString("N2")}");
+            go.GetComponent<Button>().onClick.AddListener(delegate () {
+                SoldItem.Instance.ShowSoldItem(item.SaleID);
+            });
+            go.SetActive(true);
+        }
+
+        salesProgress.ProgressChanged -= SalesProgress_ProgressChanged;
+        salesProgress = null;
+        LoadingScreen.Instance.HideLoadingScreen();
+    }
+
+    private void SalesProgress_ProgressChanged(object sender, string e) {
+        LoadingScreen.Instance.SetText($"Lade Verkauf\n{e}");
+    }
+
+    public async Task<Dictionary<int,Sales>> GetSalesAsync(IProgress<string> progress = null) {
         List<DatabaseSales> dbs = new List<DatabaseSales>();
         Dictionary<int, Sales> sales = new Dictionary<int, Sales>();
-        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
         MySqlCommand cmd = new MySqlCommand("SELECT * FROM sales ORDER BY date ASC", conn);
 
-        using (MySqlDataReader reader = cmd.ExecuteReader()) {
+        using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
             while (await reader.ReadAsync()) {
+
                 DatabaseSales databaseSales = new DatabaseSales {
-                    ID = reader.GetInt32("id"),
-                    SalesID = reader.GetInt32("sale_id"),
-                    ItemID = reader.GetInt32("item_id"),
-                    Amount = reader.GetInt32("amount"),
-                    DateTime = reader.GetDateTime("date")
+                    ID = reader.GetInt32(0),
+                    SalesID = reader.GetInt32(1),
+                    ItemID = reader.GetInt32(2),
+                    Amount = reader.GetInt32(3),
+                    DateTime = reader.GetDateTime(4)
                 };
                 dbs.Add(databaseSales);
+                if (progress != null) {
+                    Item i = await GetItemAsync(databaseSales.ItemID);
+                    progress.Report(i.Name);
+                }
             }
         }
+
         cmd.Dispose();
-        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
 
         foreach (DatabaseSales item in dbs) {
             if (sales.ContainsKey(item.SalesID)) {
@@ -360,39 +435,38 @@ public class Manager : Singleton<Manager>
 
         return sales;
     }
-    IEnumerator CreateSalesItems(Dictionary<int,Sales> sales) {
-        foreach (Sales item in sales.Values) {
-            double currentPrice = 0;
 
-            GameObject go = Instantiate(_SalesTemplate, _SalesArray);
-            go.transform.Find("Content/Title").GetComponent<TMP_Text>().SetText(item.SoldDateTime.ToString("dd/MM/yyyy HH:mm"));
-            go.transform.Find("Content/Artikel").GetComponent<TMP_Text>().SetText($"{item.SoldItemsList.Count} Artikel");
+    public async Task<Sales> GetSoldItemAsync(int saleID, IProgress<string> progress = null) {
+        Sales tempSale = new Sales();
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand($"SELECT * FROM sales WHERE sale_id = '{saleID}'", conn);
+        DatabaseSales dbs = null;
 
-            foreach (Sales.SoldItems si in item.SoldItemsList) {
-                currentPrice += GetItemPrice(si.ItemID).Result * si.Amount;
+        tempSale.SoldItemsList = new List<Sales.SoldItems>();
+        using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
+            while (await reader.ReadAsync()) {
+                dbs = new DatabaseSales {
+                    ID = reader.GetInt32(0),
+                    SalesID = reader.GetInt32(1),
+                    ItemID = reader.GetInt32(2),
+                    Amount = reader.GetInt32(3),
+                    DateTime = reader.GetDateTime(4)
+                };
+                tempSale.SoldItemsList.Add(new Sales.SoldItems { 
+                    ItemID = dbs.ItemID,
+                    Amount = dbs.Amount
+                });
+                tempSale.FullPrice += await GetItemPrice(dbs.ItemID) * dbs.Amount;
+                if (progress != null) {
+                    progress.Report(dbs.DateTime.ToString("dd/MM/yyyy HH:mm"));
+                }
             }
-            item.FullPrice = currentPrice;
-
-            go.transform.Find("Content/Price").GetComponent<TMP_Text>().SetText($"CHF {currentPrice.ToString("N2")}");
-            go.GetComponent<Button>().onClick.AddListener(delegate() {
-                SoldItem.Instance.ShowSoldItem(item);
-            });
-            go.SetActive(true);
-            yield return null;
         }
-        LoadingScreen.SetActive(false);
-    }
-
-    async Task<double> GetItemPrice(int itemID) {
-        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand cmd = new MySqlCommand($"SELECT price FROM items WHERE id = '{itemID}'", conn);
-        object obj = await cmd.ExecuteScalarAsync();
-        return (double)obj;
-    }
-    public void ClearSalesList() {
-        for (int i = 1; i < _SalesArray.childCount; i++) {
-            Destroy(_SalesArray.GetChild(i).gameObject);
-        }
+        tempSale.SaleID = dbs.SalesID;
+        tempSale.SoldDateTime = dbs.DateTime;
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return tempSale;
     }
     #endregion
 

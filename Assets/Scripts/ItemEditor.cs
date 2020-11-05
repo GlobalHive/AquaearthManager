@@ -32,7 +32,7 @@ public class ItemEditor : Singleton<ItemEditor>
         Item editItem = null;
         editItemID = itemID;
 
-        Manager.Instance.LoadingScreen.SetActive(true);
+        LoadingScreen.Instance.ShowLoadingScreen();
 
         _DropDown.dropdownItems.Clear();
 
@@ -70,7 +70,7 @@ public class ItemEditor : Singleton<ItemEditor>
 
         Manager.Instance.Tabs.HidePanels();
         _ItemEditor.GetComponent<Animator>().Play("Panel Open");
-        Manager.Instance.LoadingScreen.SetActive(false);
+        LoadingScreen.Instance.HideLoadingScreen();
     }
 
     public void CreateItem() {
@@ -93,7 +93,7 @@ public class ItemEditor : Singleton<ItemEditor>
         Texture2D image = _Image.texture as Texture2D;
         editItem.Image = image.EncodeToPNG();
 
-        Manager.Instance.LoadingScreen.SetActive(true);
+        LoadingScreen.Instance.ShowLoadingScreen();
         await Task.Run(()=> SaveItem(editItem));
         CancelEdit();
         Manager.Instance.LoadInventory(-1);

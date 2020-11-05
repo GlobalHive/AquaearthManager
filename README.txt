@@ -20,6 +20,9 @@ ToDo
 Version history
 ---------------
 Current Version [ 0.3.0 ]
+- Added sold item list
+- Rewritten Sales (Async)
+- Added better loading screen
 - Rewritten Categories (Async)
 - Rewritten Inventory (Async)
 - Rewritten ItemEditor (Async)
