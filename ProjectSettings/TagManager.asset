@@ -9,6 +9,7 @@ TagManager:
   - InventoryElement
   - SalesElement
   - SoldItemElement
+  - SellingItemElement
   layers:
   - Default
   - TransparentFX

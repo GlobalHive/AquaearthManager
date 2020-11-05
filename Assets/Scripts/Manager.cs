@@ -36,7 +36,7 @@ public class Manager : Singleton<Manager>
 
     int _OpenCategory = 0;
 
-    List<Item> selectedItems = new List<Item>();
+    List<int> selectedItems = new List<int>();
     int maxPage = 0;
     int currentPage = 0;
 
@@ -64,7 +64,7 @@ public class Manager : Singleton<Manager>
         LoadCategories();
         
         // Setzt die klick funktion fest für den verkauf knopf (Gibt die liste mit)
-        //_SellButton.onClick.AddListener(() => ItemSeller.Instance.OpenItemSeller(selectedItems));
+        _SellButton.onClick.AddListener(() => ItemSeller.Instance.OpenItemSeller(selectedItems));
     }
 
     private void Update() {
@@ -226,14 +226,11 @@ public class Manager : Singleton<Manager>
             tempButton.onClick.RemoveAllListeners();
             tempButton.onClick.AddListener(() => ItemEditor.Instance.OpenItemEditor(tempItem.ID));
 
-            tempSelectableObject.SetReturnObject(tempItem);
             tempSelectableObject.OnSelectionChanged.RemoveAllListeners();
-            tempSelectableObject.OnSelectionChanged.AddListener((o, s) => OnSelectionChanged(tempItem, s));
+            tempSelectableObject.OnSelectionChanged.AddListener((s) => OnSelectionChanged(tempItem.ID, s));
 
-            selectedItems.ForEach(delegate (Item _item) {
-                if (_item.Name == tempItem.Name)
-                    tempSelectableObject.SetSelected(true, true);
-            });
+            if (selectedItems.Contains(tempItem.ID))
+                tempSelectableObject.SetSelected(true, true);
 
             tempObject.SetActive(true);
         }
@@ -321,14 +318,12 @@ public class Manager : Singleton<Manager>
         return (double)obj;
     }
 
-    public void OnSelectionChanged(object obj, bool isSelected) {
-        Item item = (Item)obj;
+    public void OnSelectionChanged(int itemID, bool isSelected) {
         if (isSelected) {
-            if (item.Amount > 0)
-                selectedItems.Add(item);
+            selectedItems.Add(itemID);
         }
         else {
-            selectedItems.Remove(item);
+            selectedItems.Remove(itemID);
         }
 
         _SellButton.interactable = selectedItems.Count > 0;

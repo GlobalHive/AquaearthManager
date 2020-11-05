@@ -13,7 +13,7 @@ public class SelectableObject : MonoBehaviour, IPointerEnterHandler, IPointerExi
     [FoldoutGroup("Settings")]
     public bool DisableAnimations;
 
-    public class SelectionChanged : UnityEvent<object, bool> { }
+    public class SelectionChanged : UnityEvent<bool> { }
     public SelectionChanged OnSelectionChanged = new SelectionChanged();
 
     object ReturnObject;
@@ -33,7 +33,7 @@ public class SelectableObject : MonoBehaviour, IPointerEnterHandler, IPointerExi
         if (!DisableAnimations) {
             animator.Play(IsSelected ? "Selected" : "DeSelected");
         }
-        OnSelectionChanged.Invoke(ReturnObject, IsSelected);
+        OnSelectionChanged.Invoke(IsSelected);
     }
 
     public void OnPointerEnter(PointerEventData eventData) {
@@ -53,6 +53,6 @@ public class SelectableObject : MonoBehaviour, IPointerEnterHandler, IPointerExi
         }
 
         if(!silent)
-            OnSelectionChanged.Invoke(ReturnObject, IsSelected);
+            OnSelectionChanged.Invoke(IsSelected);
     }
 }

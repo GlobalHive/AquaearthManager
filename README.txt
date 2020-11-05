@@ -15,11 +15,14 @@ ToDo
 ---------------
 - Add search bar
 - Rewrite layout group, max
+- Fix recalculate price
+- Fix selling save
 
 
 Version history
 ---------------
 Current Version [ 0.3.0 ]
+- Rewritten item selling (Async)
 - Fixed multiple listener assignements
 - Added sold item list
 - Rewritten Sales (Async)
