@@ -22,6 +22,7 @@ ToDo
 Version history
 ---------------
 Current Version [ 0.3.0 ]
+- Fixed item still selected after selling
 - Rewritten item selling (Async)
 - Fixed multiple listener assignements
 - Added sold item list

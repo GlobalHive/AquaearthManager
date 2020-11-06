@@ -2,8 +2,8 @@
 using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -25,13 +25,17 @@ public class ItemSeller : Singleton<ItemSeller>
 
         sellingItems = _sellingItems;
 
+        ObjectPooler.Instance.HidePooledObjects("SellingItemElement");
+
         foreach (int item in _sellingItems) {
             Item tempItem = await Task.Run(() => Manager.Instance.GetItemAsync(item, sellingItemProgress));
             if (tempItem.Amount == 0)
                 continue;
             CreateSellingObject(tempItem);
         }
-     
+
+        valueText.SetText("CHF " + RecalculatePrice().ToString("N2"));
+
         animator.Play("Panel Open");
         Manager.Instance.Tabs.HidePanels();
 
@@ -56,8 +60,7 @@ public class ItemSeller : Singleton<ItemSeller>
         name.SetText(item.Name);
         category.SetText(item.Category.Name);
 
-        amount.dropdownItems.ForEach(i => i.OnItemSelection.RemoveAllListeners());
-        amount.dropdownItems.Clear();
+        amount.ClearDropDown();
         for (int i = 0; i < item.Amount+1; i++) {
             CustomDropdown.Item _item = new CustomDropdown.Item();
             _item.itemIcon = null;
@@ -66,6 +69,7 @@ public class ItemSeller : Singleton<ItemSeller>
             _item.OnItemSelection.AddListener(() => OnValueChanged(amount,item));
             amount.dropdownItems.Add(_item);
         }
+        amount.UpdateDropdown();
         amount.ChangeDropdownInfo(1);
         go.SetActive(true);
     }
@@ -73,14 +77,20 @@ public class ItemSeller : Singleton<ItemSeller>
     public void OnValueChanged(CustomDropdown dp, Item value) {
         TMP_Text t = dp.transform.parent.Find("Price").GetComponent<TMP_Text>();
         t.SetText("CHF " + (value.Price * dp.selectedItemIndex).ToString("N2"));
-        //valueText.SetText("CHF " + RecalculatePrice().ToString("N2"));
+        valueText.SetText("CHF " + RecalculatePrice().ToString("N2"));
     }
 
     public double RecalculatePrice() {
         double price = 0.00;
-        /*for (int i = 0; i < sellingListList.childCount-1; i++) {
-            price += sellingListList.GetChild(i+1).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex * sellingItems[i].Price;
-        }*/
+
+        for (int i = 0; i < ObjectPooler.Instance.itemsToPool[4].parent.childCount; i++) {
+            GameObject tempObject = ObjectPooler.Instance.itemsToPool[4].parent.GetChild(i).gameObject;
+            if (tempObject.activeInHierarchy) {
+                string tempOldPrice = tempObject.transform.Find("Content/Price").GetComponent<TMP_Text>().text;
+                double oldPrice = double.Parse(tempOldPrice.Remove(0, 3));
+                price += oldPrice;
+            }
+        }
         return price;
     }
 
@@ -91,37 +101,46 @@ public class ItemSeller : Singleton<ItemSeller>
     }
 
     public async void OnItemSellerSave() {
-        /*MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand cmd = new MySqlCommand("SELECT sale_id FROM sales ORDER BY id DESC LIMIT 1", conn);
-        int lastSalesId = 0;
+        LoadingScreen.Instance.ShowLoadingScreen("Speichere Verkauf");
         int amount = 0;
+        int saleID = await Task.Run(() => GetSaleID());
 
-        using (MySqlDataReader reader = cmd.ExecuteReader()) {
-            while (reader.Read()) {
-                lastSalesId = reader.GetInt32("sale_id");
-                lastSalesId++;
-            }
-        }
 
         for (int i = 0; i < sellingItems.Count; i++) {
-            amount = sellingListList.GetChild(i+1).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex;
+            amount = ObjectPooler.Instance.itemsToPool[4].parent.GetChild(i).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex;
+
             if (amount == 0)
                 continue;
 
-            cmd.CommandText = $"INSERT INTO sales (sale_id, item_id, amount) VALUES ('{lastSalesId}', '{sellingItems[i].ID}', '{amount}'); " +
-                $"UPDATE items SET amount = '{sellingItems[i].Amount - amount}' WHERE id = '{sellingItems[i].ID}';";
-            await cmd.ExecuteNonQueryAsync();
+            await Task.Run(() => SaveSalesToDatabase(saleID,sellingItems[i], amount));
+            
         }
-
-        cmd.Dispose();
-        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
 
         animator.Play("Panel Close");
         sellingItems.Clear();
-        for (int i = 1; i < sellingListList.childCount; i++) {
-            Destroy(sellingListList.GetChild(i).gameObject);
-        }
+        Manager.Instance.selectedItems.Clear();
+        ObjectPooler.Instance.HidePooledObjects("SellingItemElement");
         Manager.Instance.Tabs.ShowPanels();
-        Manager.Instance.ReloadInventory(-1);*/
+        Manager.Instance.LoadInventory(-1);
+    }
+
+    public async Task SaveSalesToDatabase(int sale_id, int itemID, int amount) {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand($"INSERT INTO sales (sale_id, item_id, amount) VALUES ('{sale_id}', '{itemID}', '{amount}'); " +
+            $"UPDATE items SET amount = amount{-amount} WHERE id = '{itemID}';", conn);
+
+        await cmd.ExecuteNonQueryAsync();
+        
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+    }
+
+    public async Task<int> GetSaleID() {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd = new MySqlCommand("SELECT sale_id FROM sales ORDER BY id DESC LIMIT 1", conn);
+        int lastSaleID = (int)cmd.ExecuteScalarAsync().Result + 1;
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return lastSaleID;
     }
 }

@@ -36,7 +36,7 @@ public class Manager : Singleton<Manager>
 
     int _OpenCategory = 0;
 
-    List<int> selectedItems = new List<int>();
+    public List<int> selectedItems = new List<int>();
     int maxPage = 0;
     int currentPage = 0;
 
@@ -229,10 +229,15 @@ public class Manager : Singleton<Manager>
             tempSelectableObject.OnSelectionChanged.RemoveAllListeners();
             tempSelectableObject.OnSelectionChanged.AddListener((s) => OnSelectionChanged(tempItem.ID, s));
 
+            tempObject.SetActive(true);
+
             if (selectedItems.Contains(tempItem.ID))
                 tempSelectableObject.SetSelected(true, true);
-
-            tempObject.SetActive(true);
+            else {
+                tempSelectableObject.SetSelected(false, true);
+                tempSelectableObject.OnPointerExit(null);
+            }
+                
         }
 
         itemProgress.ProgressChanged -= ItemProgress_ProgressChanged;

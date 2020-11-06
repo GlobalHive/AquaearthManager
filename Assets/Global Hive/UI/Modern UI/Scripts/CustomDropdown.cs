@@ -60,8 +60,8 @@ namespace GlobalHive.UI.ModernUI
         {
             dropdownAnimator = this.GetComponent<Animator>();
             itemList = itemParent.GetComponent<VerticalLayoutGroup>();
-
-            for (int i = 0; i < dropdownItems.Count; ++i)
+            //UpdateDropdown();
+            /*for (int i = 0; i < dropdownItems.Count; ++i)
             {
                 GameObject go = Instantiate(itemObject, new Vector3(0, 0, 0), Quaternion.identity) as GameObject;
                 go.transform.SetParent(itemParent, false);
@@ -109,15 +109,21 @@ namespace GlobalHive.UI.ModernUI
             if (enableIcon == false)
             {
                 selectedImage.enabled = false;
+            }*/
+        }
+
+        public void ClearDropDown() {
+            for (int i = 0; i < dropdownItems.Count; i++) {
+                dropdownItems[i].OnItemSelection.RemoveAllListeners();
+                itemParent.GetChild(i).GetComponent<Button>().onClick.RemoveAllListeners();
+                Destroy(itemParent.GetChild(i).gameObject);
             }
+            dropdownItems.Clear();
         }
 
         public void UpdateDropdown()
         {
-            for (int i = 0; i < itemParent.childCount; i++) {
-                Destroy(itemParent.GetChild(i).gameObject);
-            }
-
+            
             for (int i = 0; i < dropdownItems.Count; ++i)
             {
                 int temp = i;
@@ -143,12 +149,9 @@ namespace GlobalHive.UI.ModernUI
             selectedImage.sprite = dropdownItems[itemIndex].itemIcon;
             selectedText.text = dropdownItems[itemIndex].itemName;
             selectedItemIndex = itemIndex;
-            try
-            {
+
+            if(dropdownItems[itemIndex].OnItemSelection != null)
                 dropdownItems[itemIndex].OnItemSelection.Invoke();
-            }
-            catch (System.Exception)
-            {}
         }
         public void ChangeDropdownInfoSilent(int itemIndex) {
             selectedImage.sprite = dropdownItems[itemIndex].itemIcon;
