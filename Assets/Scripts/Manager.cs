@@ -20,7 +20,7 @@ public class Manager : Singleton<Manager>
 
     // Item
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
-    Button _SellButton;
+    Button _SellButton, _ClearSelectionButton;
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     GameObject _ItemTemplate;
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
@@ -244,6 +244,7 @@ public class Manager : Singleton<Manager>
         itemProgress = null;
 
         _SellButton.interactable = selectedItems.Count > 0;
+        _ClearSelectionButton.interactable = _SellButton.interactable;
         Tabs.PanelAnim(1);
         LoadingScreen.Instance.HideLoadingScreen();
     }
@@ -332,6 +333,7 @@ public class Manager : Singleton<Manager>
         }
 
         _SellButton.interactable = selectedItems.Count > 0;
+        _ClearSelectionButton.interactable = _SellButton.interactable;
     }
 
     public void SetPagination(bool increase) {
@@ -348,6 +350,13 @@ public class Manager : Singleton<Manager>
                 currentPage--;
         }
 
+        LoadInventory(-1);
+    }
+
+    public void ClearSelectedItems() {
+        selectedItems.Clear();
+        _SellButton.interactable = false;
+        _ClearSelectionButton.interactable = false;
         LoadInventory(-1);
     }
     #endregion

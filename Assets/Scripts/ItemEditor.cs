@@ -33,8 +33,7 @@ public class ItemEditor : Singleton<ItemEditor>
         editItemID = itemID;
 
         LoadingScreen.Instance.ShowLoadingScreen();
-
-        _DropDown.dropdownItems.Clear();
+        _DropDown.ClearDropDown();
 
         List<Category> tempCategories = await Task.Run(() => Manager.Instance.GetCategoriesAsync());
         foreach (Category category in tempCategories) {
@@ -141,8 +140,13 @@ public class ItemEditor : Singleton<ItemEditor>
             cmd.Parameters["@CATEGORY"].Value = item.Category.ID;
             cmd.Parameters["@ID"].Value = item.ID;
         }
-
-        await cmd.ExecuteNonQueryAsync();
+        try {
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (System.Exception) {
+            
+        }
+        
         cmd.Dispose();
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
     }

@@ -15,13 +15,20 @@ ToDo
 ---------------
 - Add search bar
 - Rewrite layout group, max
-- Fix recalculate price
-- Fix selling save
-
+- Add pagination to sales
+- Add application icon
+- Create info popup
+- Fix empty sales
 
 Version history
 ---------------
-Current Version [ 0.3.0 ]
+Current Version [ 0.3.1 ]
+- Fixed mysql exists already
+- Fixed category dropdown
+- Fixed Image Selector not working
+- Added Patcher
+
+Version [ 0.3.0 ]
 - Fixed item still selected after selling
 - Rewritten item selling (Async)
 - Fixed multiple listener assignements
