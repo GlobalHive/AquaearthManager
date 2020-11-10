@@ -1,4 +1,4 @@
-- ************************************
+************************************
 *         Aquaearth Manager        *
 *           by Global Hive         * 
 *            README FILE           *
@@ -14,15 +14,19 @@ Support
 ToDo
 ---------------
 - Add search bar
-- Rewrite layout group, max
-- Add pagination to sales
-- Add application icon
 - Create info popup
-- Fix empty sales
+- Add category creation
+- Add multi item edit
 
 Version history
 ---------------
-Current Version [ 0.3.1 ]
+
+Current Version [ 0.3.2 ]
+- Fixed empty sales
+- Added application icon
+- Added pagination to sales
+
+Version [ 0.3.1 ]
 - Fixed mysql exists already
 - Fixed category dropdown
 - Fixed Image Selector not working

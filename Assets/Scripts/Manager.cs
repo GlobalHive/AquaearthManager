@@ -33,6 +33,8 @@ public class Manager : Singleton<Manager>
     GameObject _SalesTemplate;
     [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
     Transform _SalesArray;
+    [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
+    TMP_Text _SalePaginationText;
 
     int _OpenCategory = 0;
 
@@ -46,8 +48,6 @@ public class Manager : Singleton<Manager>
             maxPage = value;
             if (currentPage > MaxPage)
                 currentPage = 0;
-
-            _PaginationText.SetText($"{currentPage+1} / {MaxPage+1}");
         }
     }
 
@@ -81,6 +81,21 @@ public class Manager : Singleton<Manager>
             float difference = currentMagnitude - prevMagnitude;
             _CanvasScaler.scaleFactor = Mathf.Clamp(_CanvasScaler.scaleFactor + (difference * 0.001f), 1f, 1.4f);
         }
+    }
+
+    public async Task<int> GetItemCountAsync(string table, int category = 0) {
+        MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
+        MySqlCommand cmd;
+
+        if (category != 0)
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM {table} WHERE category = '{category}'", conn);
+        else
+            cmd = new MySqlCommand($"SELECT COUNT(*) FROM {table}", conn);
+
+        object result = await cmd.ExecuteScalarAsync();
+        cmd.Dispose();
+        await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
+        return int.Parse(result.ToString());
     }
 
     #region Category
@@ -184,19 +199,12 @@ public class Manager : Singleton<Manager>
         if (category == -1)
             category = _OpenCategory;
 
-        MySqlConnection conn = GlobalHive.DatabaseAPI.API.GetInstance().GetConnection();
-        MySqlCommand cmd;
         List<Item> tempItems = new List<Item>();
 
-        if (category != 0)
-            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items WHERE category = '{category}'", conn);
-        else
-            cmd = new MySqlCommand($"SELECT COUNT(*) FROM items", conn);
-
-        object result = await cmd.ExecuteScalarAsync();
-        MaxPage = int.Parse(result.ToString());
-        cmd.Dispose();
-        GlobalHive.DatabaseAPI.API.GetInstance().FreeConnection(conn);
+        MaxPage = await GetItemCountAsync("items", category);
+        if (currentPage > maxPage)
+            currentPage = 0;
+        _PaginationText.SetText($"{currentPage + 1} / {MaxPage + 1}");
 
         var itemProgress = new Progress<string>();
         itemProgress.ProgressChanged += ItemProgress_ProgressChanged;
@@ -350,6 +358,7 @@ public class Manager : Singleton<Manager>
                 currentPage--;
         }
 
+        _PaginationText.SetText($"{currentPage + 1} / {MaxPage + 1}");
         LoadInventory(-1);
     }
 
@@ -365,6 +374,11 @@ public class Manager : Singleton<Manager>
     public async void LoadSales() {
 
         LoadingScreen.Instance.ShowLoadingScreen();
+
+        MaxPage = await GetItemCountAsync("sales");
+        if (currentPage > maxPage)
+            currentPage = 0;
+        _SalePaginationText.SetText($"{currentPage + 1} / {MaxPage + 1}");
 
         var salesProgress = new Progress<string>();
         salesProgress.ProgressChanged += SalesProgress_ProgressChanged;
@@ -405,7 +419,7 @@ public class Manager : Singleton<Manager>
         List<DatabaseSales> dbs = new List<DatabaseSales>();
         Dictionary<int, Sales> sales = new Dictionary<int, Sales>();
         MySqlConnection conn = await GlobalHive.DatabaseAPI.API.GetInstance().GetConnectionAsync();
-        MySqlCommand cmd = new MySqlCommand("SELECT * FROM sales ORDER BY date ASC", conn);
+        MySqlCommand cmd = new MySqlCommand($"SELECT * FROM sales ORDER BY date ASC LIMIT {currentPage * 100}, {currentPage + 1 * 100}", conn);
 
         using (DbDataReader reader = await cmd.ExecuteReaderAsync()) {
             while (await reader.ReadAsync()) {
@@ -480,6 +494,24 @@ public class Manager : Singleton<Manager>
         cmd.Dispose();
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
         return tempSale;
+    }
+
+    public void SetSalePagination(bool increase) {
+        if (increase) {
+            if (currentPage == maxPage)
+                currentPage = 0;
+            else
+                currentPage++;
+        }
+        else {
+            if (currentPage == 0)
+                currentPage = maxPage;
+            else
+                currentPage--;
+        }
+
+        _SalePaginationText.SetText($"{currentPage + 1} / {MaxPage + 1}");
+        LoadSales();
     }
     #endregion
 

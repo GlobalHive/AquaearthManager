@@ -20,6 +20,7 @@ public class ItemSeller : Singleton<ItemSeller>
 
     public async void OpenItemSeller(List<int> _sellingItems) {
         LoadingScreen.Instance.ShowLoadingScreen("Lade Verkauf");
+        bool hasSellingItems = false;
         var sellingItemProgress = new Progress<string>();
         sellingItemProgress.ProgressChanged += SellingItemProgress_ProgressChanged;
 
@@ -31,13 +32,21 @@ public class ItemSeller : Singleton<ItemSeller>
             Item tempItem = await Task.Run(() => Manager.Instance.GetItemAsync(item, sellingItemProgress));
             if (tempItem.Amount == 0)
                 continue;
+
+            hasSellingItems = true;
             CreateSellingObject(tempItem);
         }
 
-        valueText.SetText("CHF " + RecalculatePrice().ToString("N2"));
+        if (hasSellingItems) {
+            valueText.SetText("CHF " + RecalculatePrice().ToString("N2"));
 
-        animator.Play("Panel Open");
-        Manager.Instance.Tabs.HidePanels();
+            animator.Play("Panel Open");
+            Manager.Instance.Tabs.HidePanels();
+        }
+        else {
+            CancelSellingItems();
+            Debug.Log("TODO || No selling items selected");
+        }
 
         sellingItemProgress.ProgressChanged -= SellingItemProgress_ProgressChanged;
         sellingItemProgress = null;
@@ -105,6 +114,7 @@ public class ItemSeller : Singleton<ItemSeller>
         int amount = 0;
         int saleID = await Task.Run(() => GetSaleID());
 
+        
 
         for (int i = 0; i < sellingItems.Count; i++) {
             amount = ObjectPooler.Instance.itemsToPool[4].parent.GetChild(i).Find("Content/DropDownAmount").GetComponent<CustomDropdown>().selectedItemIndex;
