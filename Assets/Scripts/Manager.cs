@@ -1,4 +1,6 @@
-﻿using MySql.Data.MySqlClient;
+﻿using GlobalHive.UI;
+using GlobalHive.UI.ModernUI;
+using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
 using System;
 using System.Collections;
@@ -35,6 +37,9 @@ public class Manager : Singleton<Manager>
     Transform _SalesArray;
     [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
     TMP_Text _SalePaginationText;
+
+    [TabGroup("Icons"), SerializeField, AssetsOnly]
+    public Sprite InfoIcon, ErrorIcon;
 
     int _OpenCategory = 0;
 
@@ -81,6 +86,12 @@ public class Manager : Singleton<Manager>
             float difference = currentMagnitude - prevMagnitude;
             _CanvasScaler.scaleFactor = Mathf.Clamp(_CanvasScaler.scaleFactor + (difference * 0.001f), 1f, 1.4f);
         }
+
+        if (Input.GetKeyUp(KeyCode.Space)) {
+            NotificationManager.Notification test = NotificationManager.Instance.ShowNotification("Test", "ASDASDASD");
+            test.NotificationObject.SetActive(true);
+        }
+            
     }
 
     public async Task<int> GetItemCountAsync(string table, int category = 0) {

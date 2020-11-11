@@ -1,4 +1,5 @@
-﻿using GlobalHive.UI.ModernUI;
+﻿using GlobalHive.UI;
+using GlobalHive.UI.ModernUI;
 using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
 using System;
@@ -45,7 +46,10 @@ public class ItemSeller : Singleton<ItemSeller>
         }
         else {
             CancelSellingItems();
-            Debug.Log("TODO || No selling items selected");
+            Color errorColor;
+            ColorUtility.TryParseHtmlString("#FF7C8B", out errorColor);
+            NotificationManager.Instance.ShowNotification("Kein Artikel ausgewählt!", "Du hast keine <u>vorhandene</u> Artikel ausgewählt!", Manager.Instance.ErrorIcon,
+                errorColor, Color.white).SetActive(true);
         }
 
         sellingItemProgress.ProgressChanged -= SellingItemProgress_ProgressChanged;
@@ -140,7 +144,8 @@ public class ItemSeller : Singleton<ItemSeller>
             $"UPDATE items SET amount = amount{-amount} WHERE id = '{itemID}';", conn);
 
         await cmd.ExecuteNonQueryAsync();
-        
+        NotificationManager.Instance.ShowNotification("Verkauf gespeichert!", "Der verkauf wurde ...hoffentlich... gespeichert", Manager.Instance.InfoIcon).SetActive(true);
+
         cmd.Dispose();
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
     }

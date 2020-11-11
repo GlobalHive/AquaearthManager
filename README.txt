@@ -21,7 +21,12 @@ ToDo
 Version history
 ---------------
 
-Current Version [ 0.3.2 ]
+Current Version [ 0.3.3 ]
+- Removed IconManager Dependency
+- Fixed notification icons not showing correcly
+- Added Notification module
+
+Version [ 0.3.2 ]
 - Fixed empty sales
 - Added application icon
 - Added pagination to sales

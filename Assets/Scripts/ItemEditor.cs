@@ -1,4 +1,5 @@
-﻿using GlobalHive.UI.ModernUI;
+﻿using GlobalHive.UI;
+using GlobalHive.UI.ModernUI;
 using MySql.Data.MySqlClient;
 using Sirenix.OdinInspector;
 using System.Collections.Generic;
@@ -38,7 +39,7 @@ public class ItemEditor : Singleton<ItemEditor>
         List<Category> tempCategories = await Task.Run(() => Manager.Instance.GetCategoriesAsync());
         foreach (Category category in tempCategories) {
             CustomDropdown.Item di = new CustomDropdown.Item {
-                itemIcon = IconManager.Instance.GetIcon(IconType.Arrow),
+                itemIcon = null,
                 itemName = category.Name
             };
             di.OnItemSelection = new UnityEngine.Events.UnityEvent();
@@ -93,7 +94,15 @@ public class ItemEditor : Singleton<ItemEditor>
         editItem.Image = image.EncodeToPNG();
 
         LoadingScreen.Instance.ShowLoadingScreen();
-        await Task.Run(()=> SaveItem(editItem));
+        try {
+            await Task.Run(() => SaveItem(editItem));
+        }
+        catch (System.Exception) {
+            Color errorColor;
+            ColorUtility.TryParseHtmlString("#FF7C8B", out errorColor);
+            NotificationManager.Instance.ShowNotification("Artikel bereits vorhanden!", "Diesen Artikel gibt es bereits... SUCH!", Manager.Instance.ErrorIcon,
+                errorColor, Color.white).SetActive(true);
+        }
         CancelEdit();
         Manager.Instance.LoadInventory(-1);
     }
@@ -140,12 +149,8 @@ public class ItemEditor : Singleton<ItemEditor>
             cmd.Parameters["@CATEGORY"].Value = item.Category.ID;
             cmd.Parameters["@ID"].Value = item.ID;
         }
-        try {
-            await cmd.ExecuteNonQueryAsync();
-        }
-        catch (System.Exception) {
-            
-        }
+        
+        await cmd.ExecuteNonQueryAsync();
         
         cmd.Dispose();
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);
