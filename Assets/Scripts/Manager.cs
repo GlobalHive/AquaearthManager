@@ -24,17 +24,9 @@ public class Manager : Singleton<Manager>
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     Button _SellButton, _ClearSelectionButton;
     [TabGroup("Item"), SerializeField, SceneObjectsOnly]
-    GameObject _ItemTemplate;
-    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
-    Transform _ItemArray;
-    [TabGroup("Item"), SerializeField, SceneObjectsOnly]
     TMP_Text _PaginationText;
 
     // Sales
-    [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
-    GameObject _SalesTemplate;
-    [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
-    Transform _SalesArray;
     [TabGroup("Sales"), SerializeField, SceneObjectsOnly]
     TMP_Text _SalePaginationText;
 
@@ -125,6 +117,7 @@ public class Manager : Singleton<Manager>
             RawImage tempRawImage = tempObject.transform.Find("Background/Image").GetComponent<RawImage>(); // Sucht das bild im template
             TMP_Text tempTitle = tempObject.transform.Find("Background/TextArea/Title").GetComponent<TMP_Text>(); // Sucht den titel im template
             Button tempButton = tempObject.GetComponent<Button>(); // Sucht den "button" im template
+            Button tempEditButtom = tempObject.transform.Find("Background/TextArea/EditButton").GetComponent<Button>();
 
             Texture2D tempImage = category.Image.ToTexture(); // Konvertiert die Bytes[] zu eines textur
 
@@ -134,6 +127,8 @@ public class Manager : Singleton<Manager>
 
             tempButton.onClick.RemoveAllListeners();
             tempButton.onClick.AddListener(() => CategoryButtonClick(category.ID)); // Setzt die funktion beim clicken des elements
+            tempEditButtom.onClick.RemoveAllListeners();
+            tempEditButtom.onClick.AddListener(() => CategoryEditor.Instance.OpenCategoryEditor(category.ID));
             tempObject.SetActive(true); // Macht das template sichtbar
 
         }
@@ -197,6 +192,14 @@ public class Manager : Singleton<Manager>
             Image = null,
             Name = reader.GetString(1)
         };
+
+        if (!reader.IsDBNull(2)) {
+            byte[] imageBytes = reader.GetFieldValue<byte[]>(2);
+
+            if (imageBytes.Length != 0)
+                tempCategory.Image = imageBytes;
+        }
+
         if (progress != null)
             progress.Report(tempCategory.Name);
         await GlobalHive.DatabaseAPI.API.GetInstance().FreeConnectionAsync(conn);

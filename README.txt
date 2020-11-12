@@ -14,14 +14,15 @@ Support
 ToDo
 ---------------
 - Add search bar
-- Create info popup
-- Add category creation
 - Add multi item edit
 
 Version history
 ---------------
 
-Current Version [ 0.3.3 ]
+Current Version [ 0.3.4 ]
+- Added Category creation and edit functionality
+
+Version [ 0.3.3 ]
 - Removed IconManager Dependency
 - Fixed notification icons not showing correcly
 - Added Notification module
